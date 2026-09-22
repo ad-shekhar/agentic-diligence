@@ -1,0 +1,241 @@
+{
+  "company": {
+    "id": "c0e05014-093e-4711-89ba-8cc76fbdd6dc",
+    "name": "AcmeAI Target (SCENARIO_A)",
+    "domain": "acmeai.example.com"
+  },
+  "observation_window": "Last 30 Days",
+  "data_coverage": {
+    "telemetry_population": 500,
+    "analyzed_traces": 500,
+    "missing_data_pct": 0.0,
+    "observation_statement": "In the available dataset of 500 instrumented traces, 378 (75.6%) contained no detected human intervention signals. Human intervention was detected in 122 (24.4%) traces (96 explicitly observed in telemetry, 26 inferred via reaction latency heuristics)."
+  },
+  "claims": [
+    {
+      "id": "0c967e74-cf22-43b0-ae32-86d3fc30e716",
+      "category": "autonomy",
+      "claim_text": "95.0% Fully Autonomous Customer Support Agent Workflows",
+      "source": "Series A Pitch Deck (Slide 8)",
+      "target_value": "95.0%",
+      "observed_value": "75.6%",
+      "verification_status": "PARTIALLY_VERIFIED",
+      "verification_reason": "Observed autonomous rate of 75.6% is 19.4 percentage points below the stated claim of 95.0%. Human intervention was observed in 24.4% of traces.",
+      "confidence": "High"
+    },
+    {
+      "id": "023db57b-be26-4ead-9528-d9cb1385b06d",
+      "category": "economics",
+      "claim_text": "Unit economics of $0.0010 per resolved customer task",
+      "source": "Series A Pitch Deck (Slide 12)",
+      "target_value": "$0.0010",
+      "observed_value": "$0.0042",
+      "verification_status": "CONTRADICTED",
+      "verification_reason": "Observed telemetry-attributable cost of $0.0042/task is 4.2x higher than the claimed cost of $0.0010/task.",
+      "confidence": "High"
+    },
+    {
+      "id": "50e6ec77-faa2-471a-a02a-e97269c2dc1b",
+      "category": "dependency",
+      "claim_text": "Multi-cloud resilient model orchestration with zero vendor lock-in",
+      "source": "Technical Due Diligence Q&A",
+      "target_value": "Multi-Cloud Resilient",
+      "observed_value": "Primary Share: 70.5%, HHI: 0.581",
+      "verification_status": "PARTIALLY_VERIFIED",
+      "verification_reason": "Telemetry indicates multi-provider usage, but expenditure remains concentrated with a primary provider (70.5% share, HHI: 0.581).",
+      "confidence": "High"
+    }
+  ],
+  "interventions": {
+    "total_traces": 500,
+    "autonomous_traces": 378,
+    "human_traces": 122,
+    "explicitly_observed_human_traces": 96,
+    "inferred_heuristic_human_traces": 26,
+    "human_intervention_rate_pct": 24.4,
+    "autonomous_rate_pct": 75.6,
+    "data_coverage": {
+      "telemetry_population": 500,
+      "analyzed_traces": 500,
+      "missing_data_pct": 0.0,
+      "observation_statement": "In the available dataset of 500 instrumented traces, 378 (75.6%) contained no detected human intervention signals. Human intervention was detected in 122 (24.4%) traces (96 explicitly observed in telemetry, 26 inferred via reaction latency heuristics)."
+    },
+    "breakdown": {
+      "human_reaction_gap (INFERRED_HEURISTIC_LATENCY)": {
+        "count": 26,
+        "detection_method": "INFERRED_HEURISTIC_LATENCY",
+        "percentage": 5.2,
+        "avg_reaction_time_seconds": 3.3
+      },
+      "human_review (OBSERVED_TELEMETRY)": {
+        "count": 96,
+        "detection_method": "OBSERVED_TELEMETRY",
+        "percentage": 19.2,
+        "avg_reaction_time_seconds": 3.4
+      }
+    }
+  },
+  "economics": {
+    "total_tasks": 500,
+    "successful_tasks": 490,
+    "total_measured_cost_usd": 2.0855,
+    "telemetry_attributable_cost_per_task_usd": 0.004171,
+    "telemetry_attributable_cost_per_successful_task_usd": 0.004256,
+    "overall_cost_status": "MEASURED",
+    "pricing_version": "v2026_09",
+    "cost_breakdown": {
+      "evaluation": {
+        "total_cost_usd": 0.2105,
+        "percentage_of_measured": 10.09,
+        "cost_status": "MEASURED"
+      },
+      "inference": {
+        "total_cost_usd": 1.875,
+        "percentage_of_measured": 89.91,
+        "cost_status": "MEASURED"
+      },
+      "infrastructure": {
+        "total_cost_usd": 0.0,
+        "cost_status": "UNKNOWN",
+        "note": "Unmeasured in current telemetry"
+      },
+      "human_operations": {
+        "total_cost_usd": 0.0,
+        "cost_status": "UNKNOWN",
+        "note": "Unmeasured in current telemetry"
+      },
+      "governance_legal": {
+        "total_cost_usd": 0.0,
+        "cost_status": "NOT_ESTABLISHED",
+        "note": "Outside telemetry scope"
+      }
+    },
+    "latency_ms": {
+      "p50": 1563.8,
+      "p95": 5425.4,
+      "p99": 6093.1
+    }
+  },
+  "evaluation": {
+    "eval_traces_count": 220,
+    "total_traces": 500,
+    "eval_coverage_pct": 44.0,
+    "inference_cost_usd": 1.875,
+    "evaluation_cost_usd": 0.2105,
+    "trust_tax_rate_pct": 11.23,
+    "evaluation_status": "ADEQUATE_EVALUATION_COVERAGE",
+    "insufficient_coverage_flag": false,
+    "note": "Evaluation spans observed across active workflows."
+  },
+  "dependencies": {
+    "raw_metrics": {
+      "hhi_score": 0.5809,
+      "total_measured_cost_usd": 2.0855,
+      "provider_count": 3
+    },
+    "hhi_score": 0.5809,
+    "concentration_level": "MODERATE_CONCENTRATION",
+    "providers": [
+      {
+        "provider_name": "openai",
+        "cost_usd": 1.4697,
+        "share_pct": 70.47,
+        "event_count": 554
+      },
+      {
+        "provider_name": "anthropic",
+        "cost_usd": 0.6052,
+        "share_pct": 29.02,
+        "event_count": 117
+      },
+      {
+        "provider_name": "self_hosted",
+        "cost_usd": 0.0105,
+        "share_pct": 0.51,
+        "event_count": 49
+      }
+    ],
+    "interpretation": "Inference expenditure is distributed across a primary and secondary provider.",
+    "potential_implications": "Partial redundancy exists, though major operational shifts in the primary provider would require workflow adjustments."
+  },
+  "limitations": [
+    "Only instrumented agent workflows in available telemetry were analyzed.",
+    "Human intervention occurring outside instrumented software systems cannot be detected.",
+    "Telemetry-attributable cost excludes infrastructure hosting, human operational labor, and legal governance overhead.",
+    "Provider pricing calculations reference static versioned rates (v2026_09) and may differ from custom enterprise contracts."
+  ],
+  "evidence_records": [
+    {
+      "evidence_code": "EVD-001",
+      "evidence_type": "[DM]",
+      "confidence": "High",
+      "verification_status": "PARTIALLY_VERIFIED",
+      "claim_summary": "95.0% Fully Autonomous Customer Support Agent Workflows",
+      "observed_fact": "378 of 500 available traces completed without human intervention.",
+      "derived_metric_summary": "Autonomous workflow completion rate = 75.6%. Human Intervention Rate (HIR) = 24.4%.",
+      "inference_summary": "Observed autonomous rate of 75.6% is 19.4 percentage points below the stated claim of 95.0%. Human intervention was observed in 24.4% of traces.",
+      "data_source_description": "OpenTelemetry GenAI span attributes & latency gap analysis",
+      "sample_size": 500,
+      "verification_method": "Deterministic span classification & latency gap heuristics (>300s)",
+      "observation_window": "Last 30 Days",
+      "pricing_version": "v2026_09",
+      "limitations": "Intervention occurring outside instrumented systems cannot be detected."
+    },
+    {
+      "evidence_code": "EVD-002",
+      "evidence_type": "[DM]",
+      "confidence": "High",
+      "verification_status": "CONTRADICTED",
+      "claim_summary": "Unit economics of $0.0010 per resolved customer task",
+      "observed_fact": "Total measured telemetry cost of $2.09 across 500 tasks.",
+      "derived_metric_summary": "Telemetry-attributable cost per task = $0.0042 (Status: MEASURED).",
+      "inference_summary": "Observed telemetry-attributable cost of $0.0042/task is 4.2x higher than the claimed cost of $0.0010/task.",
+      "data_source_description": "Versioned Model Pricing Table (v2026_09) applied to token counts in trace spans",
+      "sample_size": 500,
+      "verification_method": "Span token count aggregation multiplied by official model pricing",
+      "observation_window": "Last 30 Days",
+      "pricing_version": "v2026_09",
+      "limitations": "Excludes unmeasured infrastructure, human operations, and governance costs."
+    },
+    {
+      "evidence_code": "EVD-003",
+      "evidence_type": "[DM]",
+      "confidence": "High",
+      "verification_status": "PARTIALLY_VERIFIED",
+      "claim_summary": "Multi-cloud resilient model orchestration with zero vendor lock-in",
+      "observed_fact": "Primary model provider (openai) represents 70.5% of cost.",
+      "derived_metric_summary": "Herfindahl-Hirschman Index (HHI) = 0.581 (MODERATE_CONCENTRATION).",
+      "inference_summary": "Telemetry indicates multi-provider usage, but expenditure remains concentrated with a primary provider (70.5% share, HHI: 0.581).",
+      "data_source_description": "Trace span provider attributes (gen_ai.system)",
+      "sample_size": 500,
+      "verification_method": "HHI concentration formula applied to provider cost shares",
+      "observation_window": "Last 30 Days",
+      "pricing_version": "v2026_09",
+      "limitations": "HHI calculation based on observed cost shares in available telemetry."
+    },
+    {
+      "evidence_code": "EVD-004",
+      "evidence_type": "[DM]",
+      "confidence": "High",
+      "verification_status": "VERIFIED",
+      "claim_summary": "Automated Evaluation & Trust Tax Overhead",
+      "observed_fact": "Evaluation spans present in 44.0% of total workflow traces (220/500).",
+      "derived_metric_summary": "Trust Tax (Evaluation Overhead Rate) = 11.23%. Status: ADEQUATE_EVALUATION_COVERAGE.",
+      "inference_summary": "Evaluation spans observed across active workflows.",
+      "data_source_description": "Evaluation span telemetry classification (span_kind=evaluation)",
+      "sample_size": 500,
+      "verification_method": "Ratio of evaluation span costs to primary inference span costs",
+      "observation_window": "Last 30 Days",
+      "pricing_version": "v2026_09",
+      "limitations": "Low evaluation coverage may indicate unmonitored agent operations."
+    }
+  ],
+  "report_metadata": {
+    "platform": "Agentic Diligence",
+    "version": "0.1.0-hardened",
+    "generated_at": "2026-09-22T12:47:45.187988",
+    "pricing_version": "v2026_09"
+  },
+  "report_id": "a386870d-3d67-4584-b76f-259befb07a5c",
+  "pdf_path": "acme_ai_diligence_report.pdf"
+}

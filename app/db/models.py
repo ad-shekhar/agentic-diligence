@@ -143,6 +143,7 @@ class Trace(Base):
     has_human_intervention = Column(Boolean, default=False)
     total_cost = Column(Float, default=0.0)
     has_unpriced_model = Column(Boolean, default=False)
+    provenance_hash = Column(String(64), nullable=True) # SHA-256 digest of original trace payload
     
     company = relationship("Company", back_populates="traces")
     workflow = relationship("Workflow", back_populates="traces")
@@ -167,6 +168,11 @@ class Span(Base):
     gen_ai_model = Column(String(100), nullable=True)
     gen_ai_prompt_tokens = Column(Integer, default=0)
     gen_ai_completion_tokens = Column(Integer, default=0)
+    
+    # Tool & Execution Execution
+    tool_name = Column(String(100), nullable=True)
+    is_error = Column(Boolean, default=False)
+    error_message = Column(Text, nullable=True)
     
     # Human Intervention indicators
     is_human_intervention = Column(Boolean, default=False)

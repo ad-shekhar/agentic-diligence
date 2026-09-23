@@ -1,30 +1,57 @@
 import os
 import json
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 
-from app.db.models import Company, Report, Claim
+from app.db.models import Company, Report, Claim, Trace
 from app.analysis.intervention import analyze_human_intervention
 from app.analysis.economics import analyze_unit_economics
 from app.analysis.evaluation import analyze_evaluation_overhead
 from app.analysis.dependency import analyze_provider_dependencies
+from app.analysis.cascade import analyze_failure_cascades
+from app.aibom.generator import generate_native_aibom, export_cyclonedx_aibom
 from app.evidence.engine import generate_evidence_package
 from app.reporting.pdf import generate_pdf_report
+from app.reporting.manifest import build_chain_of_custody_manifest
 
-def build_due_diligence_report(db: Session, company_id: str, pdf_output_path: str = None) -> Dict[str, Any]:
+def build_due_diligence_report(
+    db: Session,
+    company_id: str,
+    pdf_output_path: str = None,
+    output_dir: str = None
+) -> Dict[str, Any]:
     """
-    Assembles complete evidence-backed due diligence report, saves to DB and renders PDF.
+    Assembles a complete, standardized technical diligence package:
+    - Pitch deck claim verification matrix
+    - Native AIBOM and CycloneDX-compatible export
+    - Cascade failure & economic overrun analysis
+    - Multi-dimensional Potential SPOF analysis
+    - Auditable Evidence Graph
+    - Cryptographic Chain-of-Custody Manifest
+    - PDF Report
     """
     company = db.query(Company).filter(Company.id == company_id).first()
     if not company:
         raise ValueError(f"Company {company_id} not found")
         
+    if not output_dir:
+        output_dir = "."
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # 1. Deterministic Analytical Engines
     intervention = analyze_human_intervention(db, company_id)
     economics = analyze_unit_economics(db, company_id)
     evaluation = analyze_evaluation_overhead(db, company_id)
     dependency = analyze_provider_dependencies(db, company_id)
+    cascades = analyze_failure_cascades(db, company_id)
     
+    # 2. Native AIBOM & CycloneDX Export
+    native_aibom_obj = generate_native_aibom(db, company_id)
+    native_aibom_dict = native_aibom_obj.model_dump() if hasattr(native_aibom_obj, "model_dump") else native_aibom_obj.dict()
+    cyclonedx_aibom_dict = export_cyclonedx_aibom(native_aibom_obj)
+    
+    # 3. Evidence Engine & Claim Verifications
     evidence_records = generate_evidence_package(
         db, company_id, intervention, economics, evaluation, dependency
     )
@@ -77,6 +104,10 @@ def build_due_diligence_report(db: Session, company_id: str, pdf_output_path: st
     if economics["overall_cost_status"] == "UNKNOWN":
         dynamic_limitations.append("Telemetry contains unpriced custom models; total cost is partially unestablished.")
         
+    company_slug = company.name.lower().replace(' ', '_').replace('(', '').replace(')', '')
+    if not pdf_output_path:
+        pdf_output_path = os.path.join(output_dir, f"diligence_report_{company_slug}.pdf")
+        
     report_data = {
         "company": {
             "id": company.id,
@@ -90,22 +121,73 @@ def build_due_diligence_report(db: Session, company_id: str, pdf_output_path: st
         "economics": economics,
         "evaluation": evaluation,
         "dependencies": dependency,
+        "cascades": cascades,
+        "aibom": native_aibom_dict,
         "limitations": dynamic_limitations,
         "evidence_records": evd_json,
         "report_metadata": {
             "platform": "Agentic Diligence",
-            "version": "0.1.0-hardened",
+            "version": "1.0.0-standardized",
             "generated_at": datetime.utcnow().isoformat(),
             "pricing_version": "v2026_09"
         }
     }
     
-    if not pdf_output_path:
-        pdf_output_path = f"diligence_report_{company.name.lower().replace(' ', '_').replace('(', '').replace(')', '')}.pdf"
-        
+    # 4. Generate PDF Report
     pdf_path = generate_pdf_report(report_data, pdf_output_path)
     
-    # Save Report record in DB
+    # 5. Build Cryptographic Chain-of-Custody Manifest
+    trace_hashes = [
+        t.provenance_hash for t in db.query(Trace.provenance_hash).filter(Trace.company_id == company_id).all()
+        if t.provenance_hash
+    ]
+    report_json_str = json.dumps(report_data, indent=2, default=str)
+    aibom_native_str = json.dumps(native_aibom_dict, indent=2, default=str)
+    aibom_cyclonedx_str = json.dumps(cyclonedx_aibom_dict, indent=2, default=str)
+    
+    manifest = build_chain_of_custody_manifest(
+        company_id=company.id,
+        company_name=company.name,
+        trace_hashes=trace_hashes,
+        evidence_records=evd_json,
+        report_json_str=report_json_str,
+        pdf_path=pdf_path,
+        aibom_native_str=aibom_native_str,
+        aibom_cyclonedx_str=aibom_cyclonedx_str
+    )
+    
+    report_data["audit_manifest"] = manifest
+    report_data["pdf_path"] = pdf_path
+    
+    # 6. Save Package Files to Output Directory
+    package_json_path = os.path.join(output_dir, f"diligence_package_{company_slug}.json")
+    with open(package_json_path, "w", encoding="utf-8") as f:
+        json.dump(report_data, f, indent=2, default=str)
+        
+    manifest_path = os.path.join(output_dir, f"audit_manifest_{company_slug}.json")
+    with open(manifest_path, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=2, default=str)
+        
+    aibom_native_path = os.path.join(output_dir, f"aibom_native_{company_slug}.json")
+    with open(aibom_native_path, "w", encoding="utf-8") as f:
+        json.dump(native_aibom_dict, f, indent=2, default=str)
+        
+    aibom_cyclonedx_path = os.path.join(output_dir, f"aibom_cyclonedx_{company_slug}.json")
+    with open(aibom_cyclonedx_path, "w", encoding="utf-8") as f:
+        json.dump(cyclonedx_aibom_dict, f, indent=2, default=str)
+        
+    report_data["package_files"] = {
+        "pdf_report": os.path.abspath(pdf_path),
+        "package_json": os.path.abspath(package_json_path),
+        "audit_manifest": os.path.abspath(manifest_path),
+        "aibom_native": os.path.abspath(aibom_native_path),
+        "aibom_cyclonedx": os.path.abspath(aibom_cyclonedx_path)
+    }
+    
+    # 7. Re-generate PDF with audit manifest included
+    generate_pdf_report(report_data, pdf_output_path)
+    
+    # 8. Save Report record in DB
     db_report = Report(
         company_id=company_id,
         title=f"Technical Due Diligence Report - {company.name}",
@@ -116,6 +198,4 @@ def build_due_diligence_report(db: Session, company_id: str, pdf_output_path: st
     db.commit()
     
     report_data["report_id"] = db_report.id
-    report_data["pdf_path"] = pdf_path
-    
     return report_data

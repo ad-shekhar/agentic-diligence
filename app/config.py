@@ -1,13 +1,6 @@
 import os
 
-try:
-    from pydantic_settings import BaseSettings
-except ImportError:
-    try:
-        from pydantic import BaseSettings # type: ignore
-    except ImportError:
-        class BaseSettings: # type: ignore
-            pass
+from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Agentic Diligence"

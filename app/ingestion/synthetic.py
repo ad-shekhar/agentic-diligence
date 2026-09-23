@@ -1,5 +1,6 @@
 import uuid
 import random
+import hashlib
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
@@ -178,7 +179,19 @@ def generate_synthetic_scenario(
             
         has_eval = random.random() < eval_coverage_rate
         eval_cost = inf_cost * 0.25 if has_eval else 0.0
-        total_trace_cost = inf_cost + eval_cost
+        
+        # Tool execution & potential cascade simulation
+        # 15% of traces (and 35% of human intervention traces) encounter a tool failure triggering a retry
+        has_tool_error = (random.random() < 0.35 if is_human else random.random() < 0.12)
+        retry_cost = 0.0
+        
+        if has_tool_error and (p_rate > 0 or c_rate > 0):
+            retry_prompt_tokens = int(prompt_tokens * 1.5)
+            retry_comp_tokens = int(comp_tokens * 1.2)
+            retry_cost = (retry_prompt_tokens / 1000.0 * p_rate) + (retry_comp_tokens / 1000.0 * c_rate)
+            
+        total_trace_cost = inf_cost + eval_cost + retry_cost
+        prov_hash = hashlib.sha256(f"{scenario_name}_{i}_{trace_id}".encode()).hexdigest()
         
         trace = Trace(
             id=trace_id,
@@ -190,7 +203,8 @@ def generate_synthetic_scenario(
             status_code="OK" if random.random() > 0.02 else "ERROR",
             has_human_intervention=is_human,
             total_cost=total_trace_cost,
-            has_unpriced_model=(cost_st == CostStatus.UNKNOWN)
+            has_unpriced_model=(cost_st == CostStatus.UNKNOWN),
+            provenance_hash=prov_hash
         )
         db.add(trace)
         
@@ -208,7 +222,7 @@ def generate_synthetic_scenario(
         )
         db.add(span_orch)
         
-        # 2. LLM Span
+        # 2. LLM Span (Initial Inference)
         span_llm_id = str(uuid.uuid4())
         span_llm = Span(
             id=span_llm_id,
@@ -217,8 +231,8 @@ def generate_synthetic_scenario(
             name="llm_inference",
             span_kind="llm",
             start_time=trace_time + timedelta(milliseconds=50),
-            end_time=trace_time + timedelta(milliseconds=1200),
-            duration_ms=1150,
+            end_time=trace_time + timedelta(milliseconds=750),
+            duration_ms=700,
             gen_ai_system=provider,
             gen_ai_model=model,
             gen_ai_prompt_tokens=prompt_tokens,
@@ -241,7 +255,94 @@ def generate_synthetic_scenario(
             cost_status=cost_st
         ))
         
-        # 3. Human Intervention Span if human
+        # 3. Tool Spans: Primary Tool Call (CRM lookup)
+        tool_span_id = str(uuid.uuid4())
+        tool_status_err = has_tool_error
+        span_tool1 = Span(
+            id=tool_span_id,
+            trace_id=trace_id,
+            parent_span_id=span_orch.id,
+            name="crm_customer_lookup",
+            span_kind="tool",
+            tool_name="crm_customer_lookup",
+            is_error=tool_status_err,
+            error_message="504 Gateway Timeout: CRM API endpoint unresponsive" if tool_status_err else None,
+            start_time=trace_time + timedelta(milliseconds=760),
+            end_time=trace_time + timedelta(milliseconds=1100),
+            duration_ms=340,
+            cost=0.0
+        )
+        db.add(span_tool1)
+        
+        # 4. Cascade Handling: If tool failed, trigger Retry LLM & Fallback tool
+        if has_tool_error:
+            span_retry_llm_id = str(uuid.uuid4())
+            span_retry_llm = Span(
+                id=span_retry_llm_id,
+                trace_id=trace_id,
+                parent_span_id=span_orch.id,
+                name="retry_llm_inference",
+                span_kind="llm",
+                start_time=trace_time + timedelta(milliseconds=1110),
+                end_time=trace_time + timedelta(milliseconds=1650),
+                duration_ms=540,
+                gen_ai_system=provider,
+                gen_ai_model=model,
+                gen_ai_prompt_tokens=int(prompt_tokens * 1.5),
+                gen_ai_completion_tokens=int(comp_tokens * 1.2),
+                is_human_intervention=False,
+                cost=retry_cost,
+                cost_status=cost_st
+            )
+            db.add(span_retry_llm)
+            
+            db.add(CostEvent(
+                trace_id=trace_id,
+                span_id=span_retry_llm_id,
+                cost_category="inference",
+                provider_name=provider,
+                model_name=model,
+                prompt_tokens=int(prompt_tokens * 1.5),
+                completion_tokens=int(comp_tokens * 1.2),
+                cost_usd=retry_cost,
+                cost_status=cost_st
+            ))
+            
+            # Fallback tool
+            span_tool_fb = Span(
+                id=str(uuid.uuid4()),
+                trace_id=trace_id,
+                parent_span_id=span_orch.id,
+                name="fallback_knowledge_docs",
+                span_kind="tool",
+                tool_name="fallback_knowledge_docs",
+                is_error=False,
+                start_time=trace_time + timedelta(milliseconds=1660),
+                end_time=trace_time + timedelta(milliseconds=1850),
+                duration_ms=190,
+                cost=0.0
+            )
+            db.add(span_tool_fb)
+            
+        # 5. Vector Store RAG Span (in 70% of traces)
+        if random.random() < 0.70:
+            span_rag = Span(
+                id=str(uuid.uuid4()),
+                trace_id=trace_id,
+                parent_span_id=span_orch.id,
+                name="vector_search_rag",
+                span_kind="tool",
+                tool_name="vector_search_rag",
+                attributes_json={"vector_db.system": "pinecone", "embedding.model": "text-embedding-3-small"},
+                is_error=False,
+                start_time=trace_time + timedelta(milliseconds=1860),
+                end_time=trace_time + timedelta(milliseconds=2020),
+                duration_ms=160,
+                cost=0.0
+            )
+            db.add(span_rag)
+        
+        # 6. Human Intervention Span if human
         if is_human:
             det_method = InterventionDetectionMethod.OBSERVED_TELEMETRY if random.random() < 0.80 else InterventionDetectionMethod.INFERRED_HEURISTIC_LATENCY
             int_type = "human_review" if det_method == InterventionDetectionMethod.OBSERVED_TELEMETRY else "human_reaction_gap"
@@ -252,9 +353,9 @@ def generate_synthetic_scenario(
                 parent_span_id=span_orch.id,
                 name=int_type,
                 span_kind="human" if det_method == InterventionDetectionMethod.OBSERVED_TELEMETRY else "agent",
-                start_time=trace_time + timedelta(milliseconds=1300),
+                start_time=trace_time + timedelta(milliseconds=2050),
                 end_time=trace_time + timedelta(milliseconds=latency_ms),
-                duration_ms=latency_ms - 1300,
+                duration_ms=max(200.0, latency_ms - 2050),
                 is_human_intervention=True,
                 human_action_type=int_type,
                 detection_method=det_method,
@@ -266,12 +367,12 @@ def generate_synthetic_scenario(
                 trace_id=trace_id,
                 span_id=span_human.id,
                 intervention_type=int_type,
-                reaction_time_seconds=(latency_ms - 1300) / 1000.0,
+                reaction_time_seconds=max(0.5, (latency_ms - 2050) / 1000.0),
                 detected_via=det_method,
                 details=f"Intervention detected via {det_method.value}"
             ))
             
-        # 4. Evaluation Span
+        # 7. Evaluation Span
         if has_eval:
             span_eval_id = str(uuid.uuid4())
             span_eval = Span(
@@ -280,8 +381,8 @@ def generate_synthetic_scenario(
                 parent_span_id=span_orch.id,
                 name="eval_guardrail_check",
                 span_kind="evaluation",
-                start_time=trace_time + timedelta(milliseconds=1220),
-                end_time=trace_time + timedelta(milliseconds=1400),
+                start_time=trace_time + timedelta(milliseconds=760),
+                end_time=trace_time + timedelta(milliseconds=940),
                 duration_ms=180,
                 gen_ai_system="openai",
                 gen_ai_model="gpt-4o-mini",

@@ -1,3 +1,5 @@
+import hashlib
+import json
 from datetime import datetime
 from typing import Dict, Any, List, Tuple
 from sqlalchemy.orm import Session
@@ -60,6 +62,10 @@ def process_otlp_payload(db: Session, company_id: str, payload: Dict[str, Any]) 
     if not trace_id or not isinstance(spans_data, list) or len(spans_data) == 0:
         raise ValueError("Invalid OTLP payload: missing or malformed trace_id or spans list")
         
+    # Calculate cryptographic SHA-256 provenance hash of the raw payload
+    payload_str = json.dumps(payload, sort_keys=True, default=str)
+    prov_hash = hashlib.sha256(payload_str.encode('utf-8')).hexdigest()
+    
     start_times = []
     end_times = []
     
@@ -90,7 +96,8 @@ def process_otlp_payload(db: Session, company_id: str, payload: Dict[str, Any]) 
         status_code=payload.get("status_code", "OK"),
         has_human_intervention=False,
         total_cost=0.0,
-        has_unpriced_model=False
+        has_unpriced_model=False,
+        provenance_hash=prov_hash
     )
     db.add(trace)
     
@@ -108,18 +115,44 @@ def process_otlp_payload(db: Session, company_id: str, payload: Dict[str, Any]) 
             gen_system = attrs.get("gen_ai.system") or attrs.get("gen_ai_system")
             gen_model = attrs.get("gen_ai.request.model") or attrs.get("gen_ai_model") or attrs.get("model")
             
+            # Canonical OTel GenAI token count conventions
             try:
-                prompt_tokens = int(attrs.get("gen_ai.usage.prompt_tokens", 0) or attrs.get("prompt_tokens", 0))
+                prompt_tokens = int(
+                    attrs.get("gen_ai.usage.input_tokens", 0) or 
+                    attrs.get("gen_ai.usage.prompt_tokens", 0) or 
+                    attrs.get("prompt_tokens", 0)
+                )
             except Exception:
                 prompt_tokens = 0
                 
             try:
-                comp_tokens = int(attrs.get("gen_ai.usage.completion_tokens", 0) or attrs.get("completion_tokens", 0))
+                comp_tokens = int(
+                    attrs.get("gen_ai.usage.output_tokens", 0) or 
+                    attrs.get("gen_ai.usage.completion_tokens", 0) or 
+                    attrs.get("completion_tokens", 0)
+                )
             except Exception:
                 comp_tokens = 0
                 
             span_kind = str(s.get("kind", s.get("span_kind", "agent"))).lower()
             span_name = str(s.get("name", "span")).lower()
+            
+            # Tool Identification
+            tool_name = attrs.get("gen_ai.tool.name") or attrs.get("tool.name") or attrs.get("tool_name")
+            if not tool_name and (span_kind == "tool" or "tool" in span_kind):
+                tool_name = s.get("name", "unnamed_tool")
+                
+            # Error / Failure Identification
+            is_error = False
+            error_msg = None
+            if (
+                str(s.get("status_code", "")).upper() == "ERROR" or 
+                attrs.get("error") or 
+                s.get("error") or 
+                "error" in attrs
+            ):
+                is_error = True
+                error_msg = str(attrs.get("error.message") or attrs.get("error") or s.get("error") or "Execution failure")
             
             # Check human intervention method: EXPLICIT vs INFERRED
             is_human = False
@@ -148,7 +181,7 @@ def process_otlp_payload(db: Session, company_id: str, payload: Dict[str, Any]) 
                     has_unpriced = True
                 total_trace_cost += span_cost
                 
-                cost_cat = "evaluation" if "eval" in span_name or "judge" in span_name or "guardrail" in span_name else "inference"
+                cost_cat = "evaluation" if ("eval" in span_name or "judge" in span_name or "guardrail" in span_name) else "inference"
                 cost_event = CostEvent(
                     trace_id=trace_id,
                     span_id=span_id,
@@ -161,6 +194,9 @@ def process_otlp_payload(db: Session, company_id: str, payload: Dict[str, Any]) 
                     cost_status=cost_status
                 )
                 db.add(cost_event)
+            elif span_kind == "tool" or tool_name:
+                # Tool invocation span
+                pass
                 
             span_obj = Span(
                 id=span_id,
@@ -175,6 +211,9 @@ def process_otlp_payload(db: Session, company_id: str, payload: Dict[str, Any]) 
                 gen_ai_model=gen_model,
                 gen_ai_prompt_tokens=prompt_tokens,
                 gen_ai_completion_tokens=comp_tokens,
+                tool_name=tool_name,
+                is_error=is_error,
+                error_message=error_msg,
                 is_human_intervention=is_human,
                 human_action_type=attrs.get("human_action_type"),
                 detection_method=detection_method,

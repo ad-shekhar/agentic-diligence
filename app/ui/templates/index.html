@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agentic Diligence | Standardized AI Technical Diligence Cockpit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Top Executive Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-logo">
+        <span class="logo-shield">⬡</span>
+        <div class="brand-titles">
+          <h1>AGENTIC DILIGENCE</h1>
+          <p class="tagline">Standardized Technical Diligence & Autonomy Verification</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <span class="meta-tag" id="target-name-badge">Target: Loading...</span>
+        <span class="meta-tag" id="observation-window-badge">Window: Last 30 Days</span>
+        <span class="meta-tag" id="pricing-badge">Pricing: v2026_09</span>
+      </div>
+    </div>
+    
+    <div class="header-right">
+      <div class="scenario-picker">
+        <label for="scenario-select">Benchmark:</label>
+        <select id="scenario-select">
+          <option value="scenario_a" selected>AcmeAI (Benchmark A - Mixed Overruns)</option>
+          <option value="scenario_b">Scenario B (Fully Verified Autonomy)</option>
+          <option value="scenario_c">Scenario C (Contradicted Claims & Cost Blowout)</option>
+          <option value="scenario_d">Scenario D (Insufficient Telemetry Sample)</option>
+          <option value="scenario_f">Scenario F (98% Single-Provider Lock-in)</option>
+          <option value="scenario_g">Scenario G (Zero Evaluation Coverage)</option>
+          <option value="scenario_h">Scenario H (Unknown Custom Model Pricing)</option>
+          <option value="scenario_i">Scenario I (Multi-Provider Balanced)</option>
+          <option value="scenario_j">Scenario J (Self-Hosted Weights Heavy)</option>
+        </select>
+        <button id="btn-run-scenario" class="btn btn-secondary">Run Benchmark</button>
+      </div>
+
+      <button id="btn-open-upload" class="btn btn-outline">
+        <span class="btn-icon">↑</span> Upload Telemetry <span class="badge-experimental">Experimental</span>
+      </button>
+
+      <div class="download-dropdown">
+        <button id="btn-download-package" class="btn btn-primary">
+          <span class="btn-icon">⬇</span> Export Diligence Package
+        </button>
+        <div class="dropdown-menu" id="export-menu">
+          <a href="#" id="dl-pdf" target="_blank">📄 Diligence Report (PDF)</a>
+          <a href="#" id="dl-json" target="_blank">📦 Diligence Package (JSON)</a>
+          <a href="#" id="dl-aibom-native" target="_blank">📋 Native AIBOM (JSON)</a>
+          <a href="#" id="dl-cyclonedx" target="_blank">🌐 CycloneDX 1.6 AIBOM</a>
+          <a href="#" id="dl-manifest" target="_blank">🔒 Audit Manifest & Hash Seal</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Metric Quick Summary Strip -->
+  <section class="summary-strip">
+    <div class="kpi-card">
+      <div class="kpi-label">Autonomous Completion</div>
+      <div class="kpi-value" id="kpi-autonomy">--%</div>
+      <div class="kpi-sub" id="kpi-hir">--% Human Intervention (HIR)</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Cost Per Resolved Task</div>
+      <div class="kpi-value" id="kpi-cost">$0.0000</div>
+      <div class="kpi-sub" id="kpi-cost-status">Status: MEASURED</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Cascade Overrun Multiplier</div>
+      <div class="kpi-value" id="kpi-cascade">1.0x</div>
+      <div class="kpi-sub" id="kpi-cascade-pct">0% Traces in Recovery Loops</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Trust Tax (Eval Overhead)</div>
+      <div class="kpi-value" id="kpi-trust-tax">--%</div>
+      <div class="kpi-sub" id="kpi-eval-coverage">Coverage: --% of Traces</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Primary Vendor Dependency</div>
+      <div class="kpi-value" id="kpi-hhi">--</div>
+      <div class="kpi-sub" id="kpi-vendor-share">--% Primary Share</div>
+    </div>
+  </section>
+
+  <!-- Main Workspace Tabs -->
+  <main class="app-main">
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="tab-claims">
+        <span class="tab-num">1</span> Pitch Claim Verification Matrix
+      </button>
+      <button class="tab-btn" data-tab="tab-aibom">
+        <span class="tab-num">2</span> AI Bill of Materials (AIBOM)
+      </button>
+      <button class="tab-btn" data-tab="tab-cascades">
+        <span class="tab-num">3</span> Cascades & Potential SPOFs
+      </button>
+      <button class="tab-btn" data-tab="tab-evidence">
+        <span class="tab-num">4</span> Auditable Evidence Graph
+      </button>
+      <button class="tab-btn" data-tab="tab-manifest">
+        <span class="tab-num">5</span> Cryptographic Chain-of-Custody
+      </button>
+    </nav>
+
+    <!-- TAB 1: HERO CLAIM VERIFICATION MATRIX -->
+    <div class="tab-content active" id="tab-claims">
+      <div class="section-hero-header">
+        <div>
+          <h2>Pitch Deck Claim Verification Audit</h2>
+          <p class="section-desc">
+            Direct comparison of founder pitch statements against deterministic runtime telemetry. Click any claim to inspect raw source facts, calculation formulas, and technical limitations.
+          </p>
+        </div>
+        <div class="filter-pills" id="claim-filters">
+          <span class="pill active" data-filter="all">All Claims (<span id="count-all">0</span>)</span>
+          <span class="pill pill-verified" data-filter="VERIFIED">Verified (<span id="count-verified">0</span>)</span>
+          <span class="pill pill-partial" data-filter="PARTIALLY_VERIFIED">Partial (<span id="count-partial">0</span>)</span>
+          <span class="pill pill-contradicted" data-filter="CONTRADICTED">Contradicted (<span id="count-contradicted">0</span>)</span>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table" id="claims-table">
+          <thead>
+            <tr>
+              <th style="width: 120px;">Category</th>
+              <th style="width: 280px;">Stated Pitch Claim</th>
+              <th>Observed Telemetry Fact</th>
+              <th style="width: 140px;">Status</th>
+              <th style="width: 100px;">Confidence</th>
+              <th style="width: 110px;">Audit Trace</th>
+            </tr>
+          </thead>
+          <tbody id="claims-tbody">
+            <tr><td colspan="6" class="loading-state">Loading verification matrix...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: AIBOM EXPLORER -->
+    <div class="tab-content" id="tab-aibom">
+      <div class="section-hero-header">
+        <div>
+          <h2>AI Bill of Materials (AIBOM)</h2>
+          <p class="section-desc">
+            Telemetry-derived inventory of foundation models, external tools, vector stores, API routes, and human checkpoints.
+          </p>
+        </div>
+        <div class="aibom-action-bar">
+          <span class="aibom-badge" id="aibom-id-badge">ID: Loading...</span>
+          <button class="btn btn-sm btn-outline" id="btn-export-cyclonedx">Export CycloneDX 1.6</button>
+        </div>
+      </div>
+
+      <div class="aibom-grid">
+        <!-- Models Card -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>Foundation Models & Weights</h3>
+            <span class="counter-badge" id="models-count">0</span>
+          </div>
+          <div class="table-compact-container">
+            <table class="data-table-compact" id="models-table">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Provider</th>
+                  <th>Hosting</th>
+                  <th>Prompt Tokens</th>
+                  <th>Comp Tokens</th>
+                  <th>Cost (USD)</th>
+                </tr>
+              </thead>
+              <tbody id="models-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- External Tools & Sandboxes Card -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>External Tools, APIs & Sandboxes</h3>
+            <span class="counter-badge" id="tools-count">0</span>
+          </div>
+          <div class="table-compact-container">
+            <table class="data-table-compact" id="tools-table">
+              <thead>
+                <tr>
+                  <th>Tool Name</th>
+                  <th>Type</th>
+                  <th>Calls</th>
+                  <th>Failures</th>
+                  <th>Failure %</th>
+                  <th>Avg Latency</th>
+                </tr>
+              </thead>
+              <tbody id="tools-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="aibom-grid" style="margin-top: 20px;">
+        <!-- Vector Stores Card -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>Vector Stores & Retrieval</h3>
+          </div>
+          <div id="vector-stores-list" class="tag-card-container"></div>
+        </div>
+
+        <!-- Human Checkpoints Card -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>Human-in-the-Loop Checkpoints</h3>
+          </div>
+          <div id="human-checkpoints-list" class="tag-card-container"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: CASCADES & POTENTIAL SPOFS -->
+    <div class="tab-content" id="tab-cascades">
+      <div class="section-hero-header">
+        <div>
+          <h2>Cascades, Retries & Potential Single Points of Failure</h2>
+          <p class="section-desc">
+            Connecting runtime tool failures to unit economic overruns, and evaluating evidence-first potential single points of failure (PSPOFs).
+          </p>
+        </div>
+      </div>
+
+      <div class="panel-card" style="margin-bottom: 24px;">
+        <div class="panel-header">
+          <h3>Failure Cascade & Recovery Loop Multiplier</h3>
+          <span class="status-pill status-warn" id="cascade-stat-badge">Analyzing...</span>
+        </div>
+        <div class="cascade-statement" id="cascade-statement">Loading cascade economics...</div>
+        
+        <div class="cascade-flow-box" id="cascade-flow-visual">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-header">
+          <h3>Potential Single Points of Failure (PSPOF) Evidence Matrix</h3>
+        </div>
+        <p class="panel-subtext">
+          Identifies components dominating &gt;65% of workload and evaluates whether fallback mechanisms were observed, configured, and tested.
+        </p>
+        <div class="table-container">
+          <table class="data-table" id="spof-table">
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Type</th>
+                <th>Share</th>
+                <th>Fallback Observed?</th>
+                <th>Fallback Tested?</th>
+                <th>Observed Evidence</th>
+                <th>Risk Status</th>
+              </tr>
+            </thead>
+            <tbody id="spof-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: AUDITABLE EVIDENCE GRAPH -->
+    <div class="tab-content" id="tab-evidence">
+      <div class="section-hero-header">
+        <div>
+          <h2>Auditable Evidence Graph</h2>
+          <p class="section-desc">
+            Immutable log of telemetry-extracted facts with explicit epistemological tagging:
+            <code>[OF]</code> Observed Fact, <code>[DM]</code> Derived Metric, <code>[MI]</code> Model Inference, <code>[AS]</code> Assumption, <code>[UC]</code> User Claim.
+          </p>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table" id="evidence-table">
+          <thead>
+            <tr>
+              <th style="width: 90px;">Code</th>
+              <th style="width: 80px;">Type</th>
+              <th style="width: 90px;">Confidence</th>
+              <th>Claim Summary</th>
+              <th>Observed Fact</th>
+              <th>Verification Method & Data Source</th>
+            </tr>
+          </thead>
+          <tbody id="evidence-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 5: CRYPTOGRAPHIC CHAIN-OF-CUSTODY -->
+    <div class="tab-content" id="tab-manifest">
+      <div class="section-hero-header">
+        <div>
+          <h2>Cryptographic Chain-of-Custody Manifest</h2>
+          <p class="section-desc">
+            End-to-end audit reproducibility tracking input telemetry hashes, normalization rules, frozen pricing versions, and output artifact signatures.
+          </p>
+        </div>
+      </div>
+
+      <div class="manifest-card">
+        <div class="manifest-header">
+          <div class="manifest-badge-verified">
+            <span class="seal-icon">🔒</span>
+            <div>
+              <div class="seal-title">CHAIN-OF-CUSTODY VERIFIED</div>
+              <div class="seal-sub" id="manifest-id-val">Manifest ID: MAN-XXXXXXXX</div>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline" id="btn-copy-manifest">Copy Manifest JSON</button>
+        </div>
+
+        <div class="manifest-grid">
+          <div class="manifest-block">
+            <h4>1. Input Telemetry Digest</h4>
+            <div class="hash-box" id="manifest-input-hash">--</div>
+            <p class="manifest-note" id="manifest-trace-count">Traces: --</p>
+          </div>
+          <div class="manifest-block">
+            <h4>2. Normalization & Engine Versions</h4>
+            <div class="manifest-meta-row"><span>Normalizer:</span> <code id="manifest-norm-ver">v0.1.0-norm</code></div>
+            <div class="manifest-meta-row"><span>Engine:</span> <code id="manifest-engine-ver">v0.1.0-engine</code></div>
+            <div class="manifest-meta-row"><span>Pricing Model:</span> <code id="manifest-pricing-ver">v2026_09</code></div>
+          </div>
+          <div class="manifest-block">
+            <h4>3. Evidence Graph Digest</h4>
+            <div class="hash-box" id="manifest-evidence-hash">--</div>
+          </div>
+          <div class="manifest-block">
+            <h4>4. Master Verification Seal (SHA-256)</h4>
+            <div class="hash-box seal-highlight" id="manifest-master-seal">--</div>
+          </div>
+        </div>
+
+        <h4 style="margin-top: 24px; margin-bottom: 12px; color: #E2E8F0;">Standardized Deliverable Package Hashes</h4>
+        <div class="table-container">
+          <table class="data-table-compact" id="artifacts-table">
+            <thead>
+              <tr>
+                <th>Artifact Name</th>
+                <th>MIME Type</th>
+                <th>SHA-256 Digest</th>
+              </tr>
+            </thead>
+            <tbody id="artifacts-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- CLAIM DETAIL INSPECTOR DRAWER -->
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <aside class="claim-drawer" id="claim-drawer">
+    <div class="drawer-header">
+      <div>
+        <span class="drawer-category" id="drawer-category">CATEGORY</span>
+        <h3 id="drawer-title">Claim Title</h3>
+      </div>
+      <button class="drawer-close" id="drawer-close">&times;</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Status Box -->
+      <div class="drawer-status-card" id="drawer-status-card">
+        <div class="drawer-status-header">
+          <span class="status-badge" id="drawer-status-badge">STATUS</span>
+          <span class="confidence-badge" id="drawer-confidence-badge">Confidence: High</span>
+        </div>
+        <p class="drawer-status-reason" id="drawer-status-reason"></p>
+      </div>
+
+      <!-- Provenance Chain Steps -->
+      <div class="drawer-section">
+        <h4>1. Stated Founder / Deck Claim [UC]</h4>
+        <div class="drawer-callout" id="drawer-claim-text"></div>
+        <div class="drawer-meta-sub" id="drawer-source">Source: Series A Pitch Deck</div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>2. Observed Telemetry Fact [OF]</h4>
+        <div class="drawer-callout drawer-callout-fact" id="drawer-observed-fact"></div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>3. Deterministic Derived Metric [DM]</h4>
+        <div class="drawer-callout drawer-callout-metric" id="drawer-derived-metric"></div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>4. Verification Methodology & Boundary Formulas</h4>
+        <div class="drawer-text" id="drawer-methodology"></div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>5. Data Source & Provenance</h4>
+        <div class="drawer-text" id="drawer-datasource"></div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>6. Scope Bounds & Technical Limitations</h4>
+        <div class="drawer-text limitation-text" id="drawer-limitations"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- EXPERIMENTAL TELEMETRY UPLOAD MODAL -->
+  <div class="modal-overlay" id="upload-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3>Upload Telemetry Traces <span class="badge-experimental">Experimental</span></h3>
+          <p class="modal-sub">Direct ingestion of target AI runtime trace exports for due diligence audit.</p>
+        </div>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="format-selector">
+          <label>
+            <input type="radio" name="upload-format" value="otel" checked>
+            <span>OpenTelemetry GenAI Traces (OTLP JSON)</span>
+          </label>
+          <label>
+            <input type="radio" name="upload-format" value="native">
+            <span>Native Agentic Diligence JSON</span>
+          </label>
+        </div>
+
+        <div class="upload-dropzone" id="dropzone">
+          <span class="drop-icon">📁</span>
+          <p>Drag and drop trace JSON file here, or <span class="browse-link">browse</span></p>
+          <input type="file" id="file-input" accept=".json" style="display: none;">
+          <div class="selected-file" id="selected-file-name"></div>
+        </div>
+
+        <div class="upload-options">
+          <label for="upload-target-name">Target Company Name:</label>
+          <input type="text" id="upload-target-name" placeholder="e.g. TargetAI Inc.">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-upload">Cancel</button>
+        <button class="btn btn-primary" id="btn-submit-upload" disabled>Process & Verify Traces</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

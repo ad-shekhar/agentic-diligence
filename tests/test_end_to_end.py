@@ -32,7 +32,9 @@ def test_end_to_end_all_scenarios(db_session, tmp_path, scenario):
     res = generate_synthetic_scenario(db_session, scenario_name=scenario, sample_size=30, seed=42)
     pdf_file = str(tmp_path / f"report_{scenario}.pdf")
     
-    report_data = build_due_diligence_report(db_session, res["company_id"], pdf_output_path=pdf_file)
+    report_data = build_due_diligence_report(
+        db_session, res["company_id"], pdf_output_path=pdf_file, output_dir=str(tmp_path)
+    )
     
     assert os.path.exists(pdf_file)
     assert report_data["interventions"]["total_traces"] == res["total_traces"]

@@ -12,6 +12,12 @@ ENV/
 # Database & Reports
 *.db
 *.sqlite3
+*.pdf
+diligence_package_*.json
+diligence_report_*.json
+audit_manifest_*.json
+aibom_*.json
+acme_ai_*.json
 
 # Pytest & Coverage
 .pytest_cache/

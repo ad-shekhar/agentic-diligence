@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 
@@ -10,10 +10,12 @@ from app.analysis.economics import analyze_unit_economics
 from app.analysis.evaluation import analyze_evaluation_overhead
 from app.analysis.dependency import analyze_provider_dependencies
 from app.analysis.cascade import analyze_failure_cascades
+from app.analysis.tool_risk import analyze_tool_execution_risk
 from app.aibom.generator import generate_native_aibom, export_cyclonedx_aibom
 from app.evidence.engine import generate_evidence_package
 from app.reporting.pdf import generate_pdf_report
 from app.reporting.manifest import build_chain_of_custody_manifest
+from app.reporting.bundle import create_diligence_bundle
 
 def build_due_diligence_report(
     db: Session,
@@ -45,6 +47,7 @@ def build_due_diligence_report(
     evaluation = analyze_evaluation_overhead(db, company_id)
     dependency = analyze_provider_dependencies(db, company_id)
     cascades = analyze_failure_cascades(db, company_id)
+    tool_risk = analyze_tool_execution_risk(db, company_id)
     
     # 2. Native AIBOM & CycloneDX Export
     native_aibom_obj = generate_native_aibom(db, company_id)
@@ -122,13 +125,14 @@ def build_due_diligence_report(
         "evaluation": evaluation,
         "dependencies": dependency,
         "cascades": cascades,
+        "tool_risk": tool_risk,
         "aibom": native_aibom_dict,
         "limitations": dynamic_limitations,
         "evidence_records": evd_json,
         "report_metadata": {
             "platform": "Agentic Diligence",
             "version": "1.0.0-standardized",
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "pricing_version": "v2026_09"
         }
     }
@@ -176,16 +180,22 @@ def build_due_diligence_report(
     with open(aibom_cyclonedx_path, "w", encoding="utf-8") as f:
         json.dump(cyclonedx_aibom_dict, f, indent=2, default=str)
         
+    bundle_zip_path = os.path.join(output_dir, f"diligence_package_{company_slug}.zip")
+    
     report_data["package_files"] = {
         "pdf_report": os.path.abspath(pdf_path),
         "package_json": os.path.abspath(package_json_path),
         "audit_manifest": os.path.abspath(manifest_path),
         "aibom_native": os.path.abspath(aibom_native_path),
-        "aibom_cyclonedx": os.path.abspath(aibom_cyclonedx_path)
+        "aibom_cyclonedx": os.path.abspath(aibom_cyclonedx_path),
+        "diligence_bundle_zip": os.path.abspath(bundle_zip_path)
     }
     
-    # 7. Re-generate PDF with audit manifest included
+    # Re-generate PDF with audit manifest included
     generate_pdf_report(report_data, pdf_output_path)
+    
+    # Package into verifiable .zip bundle
+    create_diligence_bundle(report_data, bundle_zip_path)
     
     # 8. Save Report record in DB
     db_report = Report(

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
@@ -179,7 +179,7 @@ def generate_native_aibom(db: Session, company_id: str) -> NativeAIBOM:
 
     return NativeAIBOM(
         bom_id=f"BOM-{uuid.uuid4().hex[:8].upper()}",
-        generated_at=datetime.utcnow().isoformat(),
+        generated_at=datetime.now(timezone.utc).isoformat(),
         company_id=company_id,
         company_name=company_name,
         observation_window="Last 30 Days",

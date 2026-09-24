@@ -1,6 +1,6 @@
 import os
 
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Agentic Diligence"
@@ -20,8 +20,6 @@ class Settings(BaseSettings):
     LOCAL_LLAMA3_PROMPT_COST: float = 0.0002
     LOCAL_LLAMA3_COMPLETION_COST: float = 0.0004
     
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()

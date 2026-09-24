@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import (
     Column, String, Text, Float, Integer, Boolean, DateTime, ForeignKey, Enum as SQLEnum, JSON
 )
@@ -10,6 +10,9 @@ from app.db.session import Base
 
 def generate_uuid():
     return str(uuid.uuid4())
+
+def utc_now():
+    return datetime.now(timezone.utc)
 
 class ConfidenceLevel(str, enum.Enum):
     HIGH = "High"
@@ -48,7 +51,7 @@ class Tenant(Base):
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
     name = Column(String(255), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     
     companies = relationship("Company", back_populates="tenant", cascade="all, delete-orphan")
 
@@ -59,7 +62,7 @@ class Company(Base):
     tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False)
     name = Column(String(255), nullable=False)
     domain = Column(String(255), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     
     tenant = relationship("Tenant", back_populates="companies")
     agents = relationship("Agent", back_populates="company", cascade="all, delete-orphan")
@@ -76,7 +79,7 @@ class DataSource(Base):
     name = Column(String(255), nullable=False)
     source_type = Column(String(50), nullable=False)
     status = Column(String(50), default="active")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class Service(Base):
     __tablename__ = "services"
@@ -85,7 +88,7 @@ class Service(Base):
     company_id = Column(String(36), ForeignKey("companies.id"), nullable=False)
     name = Column(String(255), nullable=False)
     environment = Column(String(50), default="production")
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class ModelProvider(Base):
     __tablename__ = "model_providers"
@@ -112,7 +115,7 @@ class Agent(Base):
     role = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
     framework = Column(String(100), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     
     company = relationship("Company", back_populates="agents")
     spans = relationship("Span", back_populates="agent")
@@ -124,7 +127,7 @@ class Workflow(Base):
     company_id = Column(String(36), ForeignKey("companies.id"), nullable=False)
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     
     company = relationship("Company", back_populates="workflows")
     traces = relationship("Trace", back_populates="workflow")
@@ -199,7 +202,7 @@ class HumanIntervention(Base):
     reaction_time_seconds = Column(Float, nullable=False)
     detected_via = Column(SQLEnum(InterventionDetectionMethod), nullable=False)
     details = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
 
 class CostEvent(Base):
     __tablename__ = "cost_events"
@@ -214,7 +217,7 @@ class CostEvent(Base):
     completion_tokens = Column(Integer, default=0)
     cost_usd = Column(Float, nullable=False)
     cost_status = Column(SQLEnum(CostStatus), default=CostStatus.MEASURED)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     
     trace = relationship("Trace", back_populates="cost_events")
 
@@ -231,7 +234,7 @@ class Claim(Base):
     verification_status = Column(SQLEnum(VerificationStatus), default=VerificationStatus.INSUFFICIENT_EVIDENCE)
     verification_reason = Column(Text, nullable=True)
     confidence = Column(SQLEnum(ConfidenceLevel), default=ConfidenceLevel.UNVERIFIED)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     
     company = relationship("Company", back_populates="claims")
     evidence_records = relationship("EvidenceRecord", back_populates="claim", cascade="all, delete-orphan")
@@ -255,7 +258,7 @@ class EvidenceRecord(Base):
     observation_window = Column(String(255), nullable=True)
     pricing_version = Column(String(100), default="v2026_09")
     limitations = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     
     claim = relationship("Claim", back_populates="evidence_records")
 
@@ -279,6 +282,6 @@ class Report(Base):
     report_type = Column(String(100), default="technical_due_diligence")
     summary_json = Column(JSON, nullable=True)
     pdf_path = Column(String(512), nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=utc_now)
     
     company = relationship("Company", back_populates="reports")

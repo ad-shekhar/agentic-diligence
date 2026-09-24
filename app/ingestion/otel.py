@@ -1,6 +1,6 @@
 import hashlib
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List, Tuple
 from sqlalchemy.orm import Session
 
@@ -12,14 +12,14 @@ def parse_iso_datetime(dt_str: Any) -> datetime:
         return dt_str
     if isinstance(dt_str, (int, float)):
         if dt_str > 1e11: # nanoseconds
-            return datetime.utcfromtimestamp(dt_str / 1e9)
-        return datetime.utcfromtimestamp(dt_str)
+            return datetime.fromtimestamp(dt_str / 1e9, tz=timezone.utc).replace(tzinfo=None)
+        return datetime.fromtimestamp(dt_str, tz=timezone.utc).replace(tzinfo=None)
     if isinstance(dt_str, str):
         try:
-            return datetime.fromisoformat(dt_str.replace('Z', '+00:00'))
+            return datetime.fromisoformat(dt_str.replace('Z', '+00:00')).replace(tzinfo=None)
         except Exception:
-            return datetime.utcnow()
-    return datetime.utcnow()
+            return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 def compute_span_cost(provider: str, model: str, prompt_tokens: int, completion_tokens: int) -> Tuple[float, CostStatus]:
     """
@@ -77,8 +77,9 @@ def process_otlp_payload(db: Session, company_id: str, payload: Dict[str, Any]) 
             pass
             
     if not start_times:
-        start_times = [datetime.utcnow()]
-        end_times = [datetime.utcnow()]
+        now_dt = datetime.now(timezone.utc).replace(tzinfo=None)
+        start_times = [now_dt]
+        end_times = [now_dt]
         
     trace_start = min(start_times)
     trace_end = max(end_times)

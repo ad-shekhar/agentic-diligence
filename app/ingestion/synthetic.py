@@ -1,7 +1,7 @@
 import uuid
 import random
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List
 from sqlalchemy.orm import Session
 
@@ -136,7 +136,7 @@ def generate_synthetic_scenario(
     count_auto = int(sample_size * target_auto_rate)
     count_human = sample_size - count_auto
     
-    base_time = datetime.utcnow() - timedelta(days=30)
+    base_time = datetime.now(timezone.utc) - timedelta(days=30)
     
     def pick_provider_tuple():
         r = random.random()

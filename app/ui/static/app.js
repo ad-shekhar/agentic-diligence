@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupClaimFilters();
   setupDrawer();
   setupUploadModal();
+  setupComparison();
   
   // Initial load: run default benchmark (scenario_a)
   loadScenario("scenario_a");
@@ -95,6 +96,7 @@ function renderReport(data) {
   renderCascadesAndSPOF(data.cascades || {}, data.dependencies || {});
   renderEvidenceGraph(data.evidence_records || []);
   renderManifest(data.audit_manifest || {});
+  renderToolRisk(data.tool_risk || {});
   
   // Download Links
   setupDownloadLinks(data);
@@ -554,4 +556,148 @@ function escapeHtml(text) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+// Setup Download Links
+function setupDownloadLinks(data) {
+  const compId = data.company?.id;
+  if (!compId) return;
+  
+  const dlPdf = document.getElementById("dl-pdf");
+  if (dlPdf) dlPdf.href = `/api/v1/companies/${compId}/pdf`;
+  
+  const dlBundle = document.getElementById("dl-bundle");
+  if (dlBundle) dlBundle.href = `/api/v1/companies/${compId}/bundle`;
+
+  const dlJson = document.getElementById("dl-json");
+  if (dlJson) dlJson.href = `/api/v1/companies/${compId}/package`;
+  
+  const dlAibomNative = document.getElementById("dl-aibom-native");
+  if (dlAibomNative) dlAibomNative.href = `/api/v1/companies/${compId}/aibom`;
+  
+  const dlCyclonedx = document.getElementById("dl-cyclonedx");
+  if (dlCyclonedx) dlCyclonedx.href = `/api/v1/companies/${compId}/aibom/cyclonedx`;
+  
+  const dlManifest = document.getElementById("dl-manifest");
+  if (dlManifest) dlManifest.href = `/api/v1/companies/${compId}/manifest`;
+}
+
+// 6. Tool Risk & Privilege Audit
+function renderToolRisk(risk) {
+  const scoreEl = document.getElementById("tool-risk-score");
+  if (scoreEl) scoreEl.innerText = risk.tool_risk_score ?? "--";
+  
+  const invEl = document.getElementById("tool-total-invocations");
+  if (invEl) invEl.innerText = risk.total_tool_calls ?? "--";
+  
+  const perTraceEl = document.getElementById("tool-per-trace-sub");
+  if (perTraceEl) perTraceEl.innerText = `${risk.tool_invocation_rate_per_trace ?? "--"} calls / trace`;
+  
+  const failRateEl = document.getElementById("tool-failure-rate");
+  if (failRateEl) failRateEl.innerText = `${risk.tool_failure_rate_pct ?? "--"}%`;
+  
+  const failCountEl = document.getElementById("tool-failures-count");
+  if (failCountEl) failCountEl.innerText = `${risk.tool_failure_count ?? 0} failures`;
+  
+  const highPrivEl = document.getElementById("tool-high-priv-rate");
+  if (highPrivEl) highPrivEl.innerText = `${risk.high_or_critical_privilege_pct ?? "--"}%`;
+  
+  const unconstEl = document.getElementById("tool-unconstrained-traces");
+  if (unconstEl) unconstEl.innerText = risk.unconstrained_execution_traces_count ?? 0;
+
+  const levelBadge = document.getElementById("tool-risk-level-badge");
+  if (levelBadge) {
+    const lvl = risk.risk_level || "LOW";
+    levelBadge.innerText = `Risk Level: ${lvl}`;
+    levelBadge.className = `status-badge ${lvl === "CRITICAL" ? "status-contradicted" : (lvl === "ELEVATED" ? "status-partially-verified" : "status-verified")}`;
+  }
+
+  const tbody = document.getElementById("tool-inventory-tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  (risk.tool_inventory || []).forEach(item => {
+    const tr = document.createElement("tr");
+    const privClass = item.privilege_level === "CRITICAL" ? "status-contradicted" : (item.privilege_level === "HIGH" ? "status-partially-verified" : "status-verified");
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(item.tool_name)}</strong></td>
+      <td><span class="status-badge ${privClass}">${item.privilege_level}</span></td>
+      <td>${item.invocation_count}</td>
+      <td>${item.error_count}</td>
+      <td>${item.error_rate_pct}%</td>
+      <td>${item.avg_latency_ms} ms</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// 7. Comparative Diligence Audit
+function setupComparison() {
+  const btn = document.getElementById("btn-run-compare");
+  if (!btn) return;
+
+  btn.addEventListener("click", async () => {
+    const targetA = document.getElementById("compare-target-a").value;
+    const targetB = document.getElementById("compare-target-b").value;
+
+    btn.innerText = "Comparing...";
+    btn.disabled = true;
+
+    try {
+      const res = await fetch("/api/v1/comparison/scenarios", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scenario_a: targetA, scenario_b: targetB, sample_size: 250 })
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      renderComparisonResults(data);
+    } catch (err) {
+      alert(`Comparison failed: ${err.message}`);
+    } finally {
+      btn.innerText = "Run Comparative Audit";
+      btn.disabled = false;
+    }
+  });
+}
+
+function renderComparisonResults(data) {
+  const container = document.getElementById("compare-results-container");
+  if (container) container.style.display = "block";
+
+  const winners = data.dimension_winners || {};
+  const winAuto = document.getElementById("winner-autonomy");
+  if (winAuto) winAuto.innerText = winners.autonomy || "--";
+  
+  const winEcon = document.getElementById("winner-economics");
+  if (winEcon) winEcon.innerText = winners.economics || "--";
+  
+  const winRes = document.getElementById("winner-resilience");
+  if (winRes) winRes.innerText = winners.resilience || "--";
+  
+  const winGov = document.getElementById("winner-gov");
+  if (winGov) winGov.innerText = winners.governance_and_safety || "--";
+
+  const thA = document.getElementById("th-target-a");
+  if (thA) thA.innerText = data.target_a?.name || "Target A";
+  
+  const thB = document.getElementById("th-target-b");
+  if (thB) thB.innerText = data.target_b?.name || "Target B";
+
+  const tbody = document.getElementById("compare-matrix-tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  (data.matrix || []).forEach(row => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(row.dimension)}</strong></td>
+      <td style="color: #8892b0;">${escapeHtml(row.metric)}</td>
+      <td>${escapeHtml(row.target_a_value)}</td>
+      <td>${escapeHtml(row.target_b_value)}</td>
+      <td style="font-family: monospace;">${escapeHtml(row.delta)}</td>
+      <td><span class="status-badge status-verified">${escapeHtml(row.advantage)}</span></td>
+    `;
+    tbody.appendChild(tr);
+  });
 }

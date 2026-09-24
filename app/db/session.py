@@ -24,3 +24,14 @@ def get_db():
 def init_db():
     from app.db import models  # noqa: F401
     Base.metadata.create_all(bind=engine)
+    # Ensure SQLite backward compatibility with dynamic column migrations
+    with engine.connect() as conn:
+        try:
+            from sqlalchemy import text
+            result = conn.execute(text("PRAGMA table_info(traces)")).fetchall()
+            cols = [r[1] for r in result]
+            if cols and "provenance_hash" not in cols:
+                conn.execute(text("ALTER TABLE traces ADD COLUMN provenance_hash VARCHAR(64)"))
+                conn.commit()
+        except Exception:
+            pass

@@ -13,6 +13,9 @@ from app.analysis.intervention import analyze_human_intervention
 from app.analysis.economics import analyze_unit_economics
 from app.analysis.dependency import analyze_provider_dependencies
 from app.analysis.cascade import analyze_failure_cascades
+from app.analysis.tool_risk import analyze_tool_execution_risk
+from app.analysis.comparison import compare_diligence_targets
+from app.reporting.bundle import create_diligence_bundle, verify_diligence_bundle
 from app.aibom.generator import generate_native_aibom, export_cyclonedx_aibom
 from app.reporting.builder import build_due_diligence_report
 
@@ -187,3 +190,68 @@ def get_company_cascades(company_id: str, db: Session = Depends(get_db)):
 def get_company_aibom(company_id: str, db: Session = Depends(get_db)):
     """Returns native AIBOM for a company."""
     return generate_native_aibom(db, company_id)
+
+@router.get("/companies/{company_id}/tool-risk")
+def get_company_tool_risk(company_id: str, db: Session = Depends(get_db)):
+    """Returns tool privilege and sandbox execution risk assessment."""
+    return analyze_tool_execution_risk(db, company_id)
+
+@router.get("/companies/{company_id}/bundle")
+def download_diligence_bundle(company_id: str, db: Session = Depends(get_db)):
+    """Downloads the complete cryptographically verifiable .zip diligence bundle."""
+    package = build_due_diligence_report(db, company_id)
+    pkg_files = package.get("package_files", {})
+    bundle_path = pkg_files.get("diligence_bundle_zip")
+    
+    if bundle_path and os.path.exists(bundle_path):
+        return FileResponse(
+            bundle_path,
+            media_type="application/zip",
+            filename=os.path.basename(bundle_path)
+        )
+    raise HTTPException(status_code=404, detail="Diligence package bundle not found.")
+
+@router.post("/packages/verify")
+def verify_bundle_endpoint(payload: Dict[str, Any] = Body(...)):
+    """
+    Verifies the integrity, authenticity, and SHA-256 chain-of-custody seal
+    of a diligence bundle given its file path.
+    """
+    bundle_path = payload.get("bundle_path")
+    if not bundle_path:
+        raise HTTPException(status_code=400, detail="Missing required 'bundle_path' parameter.")
+    res = verify_diligence_bundle(bundle_path)
+    return res
+
+@router.get("/comparison")
+def compare_companies_endpoint(
+    company_a_id: str,
+    company_b_id: str,
+    db: Session = Depends(get_db)
+):
+    """Generates side-by-side comparative technical diligence matrix between two targets."""
+    try:
+        return compare_diligence_targets(db, company_a_id, company_b_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/comparison/scenarios")
+def compare_scenarios_endpoint(
+    payload: Dict[str, Any] = Body(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Runs two synthetic benchmark scenarios and compares them side-by-side.
+    E.g. payload: {"scenario_a": "scenario_a", "scenario_b": "scenario_c", "sample_size": 300}
+    """
+    try:
+        sc_a = payload.get("scenario_a", "scenario_a").lower()
+        sc_b = payload.get("scenario_b", "scenario_c").lower()
+        sample_size = payload.get("sample_size", 300)
+        
+        target_a_res = generate_synthetic_scenario(db, scenario_name=sc_a, sample_size=sample_size, seed=42)
+        target_b_res = generate_synthetic_scenario(db, scenario_name=sc_b, sample_size=sample_size, seed=99)
+        
+        return compare_diligence_targets(db, target_a_res["company_id"], target_b_res["company_id"])
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

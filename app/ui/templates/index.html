@@ -54,6 +54,7 @@
         </button>
         <div class="dropdown-menu" id="export-menu">
           <a href="#" id="dl-pdf" target="_blank">📄 Diligence Report (PDF)</a>
+          <a href="#" id="dl-bundle" target="_blank">🔐 Verifiable Diligence Bundle (.ZIP)</a>
           <a href="#" id="dl-json" target="_blank">📦 Diligence Package (JSON)</a>
           <a href="#" id="dl-aibom-native" target="_blank">📋 Native AIBOM (JSON)</a>
           <a href="#" id="dl-cyclonedx" target="_blank">🌐 CycloneDX 1.6 AIBOM</a>
@@ -109,6 +110,12 @@
       </button>
       <button class="tab-btn" data-tab="tab-manifest">
         <span class="tab-num">5</span> Cryptographic Chain-of-Custody
+      </button>
+      <button class="tab-btn" data-tab="tab-toolrisk">
+        <span class="tab-num">6</span> Tool Risk & Privilege
+      </button>
+      <button class="tab-btn" data-tab="tab-compare">
+        <span class="tab-num">7</span> Comparative Diligence
       </button>
     </nav>
 
@@ -364,6 +371,149 @@
               </tr>
             </thead>
             <tbody id="artifacts-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: TOOL RISK & PRIVILEGE AUDIT -->
+    <div class="tab-content" id="tab-toolrisk">
+      <div class="section-hero-header">
+        <div>
+          <h2>Agent Tool Execution & Privilege Escalation Audit</h2>
+          <p class="section-desc">
+            Auditing execution boundaries, privileged system/mutation capabilities, tool failure rates, and unconstrained action patterns across all runtime traces.
+          </p>
+        </div>
+        <div class="tool-risk-badge-box">
+          <span class="status-badge" id="tool-risk-level-badge">Risk Level: LOW</span>
+        </div>
+      </div>
+
+      <div class="summary-strip" style="margin-bottom: 1.5rem;">
+        <div class="kpi-card">
+          <div class="kpi-label">Tool Risk Score</div>
+          <div class="kpi-value" id="tool-risk-score">--</div>
+          <div class="kpi-sub">Scale 0 - 100</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Tool Invocations</div>
+          <div class="kpi-value" id="tool-total-invocations">--</div>
+          <div class="kpi-sub" id="tool-per-trace-sub">-- calls / trace</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Tool Failure Rate</div>
+          <div class="kpi-value" id="tool-failure-rate">--%</div>
+          <div class="kpi-sub" id="tool-failures-count">0 failures</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">High/Critical Privilege</div>
+          <div class="kpi-value" id="tool-high-priv-rate">--%</div>
+          <div class="kpi-sub">System & Data Mutation</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Unconstrained Traces</div>
+          <div class="kpi-value" id="tool-unconstrained-traces">--</div>
+          <div class="kpi-sub">Zero Human Checkpoints</div>
+        </div>
+      </div>
+
+      <div class="content-block">
+        <h3>Tool Inventory & Reliability Profile</h3>
+        <p class="block-sub">Runtime observed tools, categorized privileges, execution counts, and error profiles.</p>
+        <div class="table-container" style="margin-top: 1rem;">
+          <table class="data-table" id="tool-inventory-table">
+            <thead>
+              <tr>
+                <th>Tool Name</th>
+                <th>Privilege Level</th>
+                <th>Invocations</th>
+                <th>Errors</th>
+                <th>Failure Rate</th>
+                <th>Avg Latency</th>
+              </tr>
+            </thead>
+            <tbody id="tool-inventory-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 7: COMPARATIVE DILIGENCE -->
+    <div class="tab-content" id="tab-compare">
+      <div class="section-hero-header">
+        <div>
+          <h2>Multi-Target Comparative Technical Diligence</h2>
+          <p class="section-desc">
+            Benchmark two target systems side-by-side across autonomy, economics, concentration risk, and reliability.
+          </p>
+        </div>
+      </div>
+
+      <div class="filter-pills" style="margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color, #2a2e39);">
+        <div>
+          <label style="font-size: 0.85rem; color: #8892b0; margin-right: 0.5rem;">Target A:</label>
+          <select id="compare-target-a" style="background: #11141d; color: #e6edf3; border: 1px solid #30363d; padding: 6px 12px; border-radius: 6px;">
+            <option value="scenario_a" selected>Scenario A (AcmeAI Baseline)</option>
+            <option value="scenario_b">Scenario B (High Autonomy)</option>
+            <option value="scenario_c">Scenario C (Cost Blowout)</option>
+            <option value="scenario_d">Scenario D (High Retry Storm)</option>
+            <option value="scenario_f">Scenario F (98% Single-Provider)</option>
+            <option value="scenario_g">Scenario G (Zero Evaluation)</option>
+            <option value="scenario_h">Scenario H (Unpriced Models)</option>
+            <option value="scenario_i">Scenario I (Multi-Provider Balanced)</option>
+          </select>
+        </div>
+        <span style="font-weight: 700; color: #58a6ff;">VS</span>
+        <div>
+          <label style="font-size: 0.85rem; color: #8892b0; margin-right: 0.5rem;">Target B:</label>
+          <select id="compare-target-b" style="background: #11141d; color: #e6edf3; border: 1px solid #30363d; padding: 6px 12px; border-radius: 6px;">
+            <option value="scenario_a">Scenario A (AcmeAI Baseline)</option>
+            <option value="scenario_b">Scenario B (High Autonomy)</option>
+            <option value="scenario_c">Scenario C (Cost Blowout)</option>
+            <option value="scenario_d" selected>Scenario D (High Retry Storm)</option>
+            <option value="scenario_f">Scenario F (98% Single-Provider)</option>
+            <option value="scenario_g">Scenario G (Zero Evaluation)</option>
+            <option value="scenario_h">Scenario H (Unpriced Models)</option>
+            <option value="scenario_i">Scenario I (Multi-Provider Balanced)</option>
+          </select>
+        </div>
+        <button id="btn-run-compare" class="btn btn-primary" style="margin-left: auto;">Run Comparative Audit</button>
+      </div>
+
+      <div id="compare-results-container" style="display: none;">
+        <div class="summary-strip" style="margin-bottom: 1.5rem;">
+          <div class="kpi-card">
+            <div class="kpi-label">Autonomy Advantage</div>
+            <div class="kpi-value" id="winner-autonomy" style="font-size: 1.1rem; color: #58a6ff;">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Unit Economics Advantage</div>
+            <div class="kpi-value" id="winner-economics" style="font-size: 1.1rem; color: #3fb950;">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Architectural Resilience</div>
+            <div class="kpi-value" id="winner-resilience" style="font-size: 1.1rem; color: #d29922;">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Governance & Safety</div>
+            <div class="kpi-value" id="winner-gov" style="font-size: 1.1rem; color: #bc8cff;">--</div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="compare-matrix-table">
+            <thead>
+              <tr>
+                <th>Audit Dimension</th>
+                <th>Metric</th>
+                <th id="th-target-a">Target A</th>
+                <th id="th-target-b">Target B</th>
+                <th>Delta</th>
+                <th>Advantage</th>
+              </tr>
+            </thead>
+            <tbody id="compare-matrix-tbody"></tbody>
           </table>
         </div>
       </div>

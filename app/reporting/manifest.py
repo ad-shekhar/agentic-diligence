@@ -2,7 +2,7 @@ import hashlib
 import json
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, List
 
 def compute_sha256_bytes(data: bytes) -> str:
@@ -32,7 +32,7 @@ def build_chain_of_custody_manifest(
     and versions across the entire processing chain for full audit reproducibility.
     """
     manifest_id = f"MAN-{uuid.uuid4().hex[:8].upper()}"
-    timestamp = datetime.utcnow().isoformat()
+    timestamp = datetime.now(timezone.utc).isoformat()
     
     # 1. Input Telemetry Aggregate Hash
     combined_trace_hashes = "".join(sorted(trace_hashes if trace_hashes else ["empty_trace_set"]))

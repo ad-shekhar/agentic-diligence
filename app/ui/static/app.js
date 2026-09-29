@@ -72,7 +72,7 @@ function renderReport(data) {
   // KPI Strip
   const intRes = data.interventions || {};
   document.getElementById("kpi-autonomy").innerText = `${intRes.autonomous_rate_pct ?? "--"}%`;
-  document.getElementById("kpi-hir").innerText = `${intRes.human_intervention_rate_pct ?? "--"}% Human Intervention (HIR)`;
+  document.getElementById("kpi-hir").innerText = `${intRes.human_intervention_rate_pct ?? "--"}% Human Help Rate (HIR)`;
 
   const econ = data.economics || {};
   document.getElementById("kpi-cost").innerText = `$${Number(econ.telemetry_attributable_cost_per_task_usd || 0).toFixed(4)}`;
@@ -80,16 +80,16 @@ function renderReport(data) {
 
   const casc = data.cascades || {};
   document.getElementById("kpi-cascade").innerText = `${casc.avg_cost_multiplier_on_failure || 1.0}x`;
-  document.getElementById("kpi-cascade-pct").innerText = `${casc.cascade_frequency_pct || 0}% Traces in Recovery Loops`;
+  document.getElementById("kpi-cascade-pct").innerText = `${casc.cascade_frequency_pct || 0}% of Tasks in Error Loops`;
 
   const evalRes = data.evaluation || {};
   document.getElementById("kpi-trust-tax").innerText = `${evalRes.trust_tax_rate_pct ?? "--"}%`;
-  document.getElementById("kpi-eval-coverage").innerText = `Coverage: ${evalRes.eval_coverage_pct ?? "--"}% of Traces`;
+  document.getElementById("kpi-eval-coverage").innerText = `Tested: ${evalRes.eval_coverage_pct ?? "--"}% of Tasks`;
 
   const dep = data.dependencies || {};
   document.getElementById("kpi-hhi").innerText = dep.hhi_score ?? "--";
   const primaryShare = dep.providers && dep.providers[0] ? dep.providers[0].share_pct : "--";
-  document.getElementById("kpi-vendor-share").innerText = `${primaryShare}% Primary Share`;
+  document.getElementById("kpi-vendor-share").innerText = `${primaryShare}% Relies on Main Provider`;
 
   // Render Tabs
   renderClaimMatrix(data.claims || []);
@@ -320,33 +320,33 @@ function renderCascadesAndSPOF(casc, dep) {
   const flowBox = document.getElementById("cascade-flow-visual");
   flowBox.innerHTML = `
     <div class="flow-step">
-      <div class="flow-step-name">1. Orchestrator Agent</div>
-      <div class="flow-step-meta">Workflow Start</div>
+      <div class="flow-step-name">1. Master Planner AI</div>
+      <div class="flow-step-meta">Task Kickoff</div>
     </div>
     <div class="flow-arrow">→</div>
     <div class="flow-step">
-      <div class="flow-step-name">2. LLM Call #1</div>
-      <div class="flow-step-meta">Initial Generation</div>
+      <div class="flow-step-name">2. Language Model #1</div>
+      <div class="flow-step-meta">Drafts Plan</div>
     </div>
     <div class="flow-arrow">→</div>
     <div class="flow-step" style="border-color: #EF4444;">
-      <div class="flow-step-name" style="color: #F87171;">3. Tool Call [FAIL]</div>
-      <div class="flow-step-meta">504 Gateway Timeout</div>
+      <div class="flow-step-name" style="color: #F87171;">3. Tool Call [CRASH]</div>
+      <div class="flow-step-meta">504 Server Timeout</div>
     </div>
     <div class="flow-arrow">→</div>
     <div class="flow-step" style="border-color: #F59E0B;">
-      <div class="flow-step-name" style="color: #FBBF24;">4. Retry LLM Call</div>
-      <div class="flow-step-meta">+150% Prompt Tokens</div>
+      <div class="flow-step-name" style="color: #FBBF24;">4. Emergency Retry Loop</div>
+      <div class="flow-step-meta">+150% Cost Spike</div>
     </div>
     <div class="flow-arrow">→</div>
     <div class="flow-step">
-      <div class="flow-step-name">5. Fallback Tool</div>
-      <div class="flow-step-meta">Knowledge Docs</div>
+      <div class="flow-step-name">5. Backup Knowledge Tool</div>
+      <div class="flow-step-meta">Fallback Data Source</div>
     </div>
     <div class="flow-arrow">→</div>
     <div class="flow-step">
-      <div class="flow-step-name">6. Human Review</div>
-      <div class="flow-step-meta">Escalation Gap: 3.3s</div>
+      <div class="flow-step-name">6. Human Safety Review</div>
+      <div class="flow-step-meta">Human Signoff Gate</div>
     </div>
   `;
 

@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agentic Diligence | Standardized AI Technical Diligence Cockpit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <!-- Top Executive Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-logo">
+        <span class="logo-shield">⬡</span>
+        <div class="brand-titles">
+          <h1>AGENTIC DILIGENCE</h1>
+          <p class="tagline">AI Startup Verification & Technical Audit Platform</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <span class="meta-tag" id="target-name-badge">Target: Loading...</span>
+        <span class="meta-tag" id="observation-window-badge">Audit Window: Last 30 Days</span>
+        <span class="meta-tag" id="pricing-badge">Pricing Rates: Sep 2026</span>
+      </div>
+    </div>
+    
+    <div class="header-right">
+      <div class="scenario-picker">
+        <label for="scenario-select">Company Audit:</label>
+        <select id="scenario-select">
+          <option value="scenario_a" selected>AcmeAI (Realistic Benchmark - Cost Overruns)</option>
+          <option value="scenario_b">Company B (Verified High Automation - 96% AI)</option>
+          <option value="scenario_c">Company C (Falsified Pitch Claims - 80% Human)</option>
+          <option value="scenario_d">Company D (Warning: Very Little Data Provided)</option>
+          <option value="scenario_f">Company F (98% Lock-in to Single Vendor)</option>
+          <option value="scenario_g">Company G (Zero Quality Control Testing)</option>
+          <option value="scenario_h">Company H (Unpriced Custom Model Costs)</option>
+          <option value="scenario_i">Company I (Healthy Multi-Vendor Setup)</option>
+          <option value="scenario_j">Company J (Owns 90% Self-Hosted AI Models)</option>
+        </select>
+        <button id="btn-run-scenario" class="btn btn-secondary">Run Audit</button>
+      </div>
+
+      <button id="btn-open-upload" class="btn btn-outline">
+        <span class="btn-icon">↑</span> Upload AI Logs <span class="badge-experimental">Custom</span>
+      </button>
+
+      <div class="download-dropdown">
+        <button id="btn-download-package" class="btn btn-primary">
+          <span class="btn-icon">⬇</span> Download Audit Package
+        </button>
+        <div class="dropdown-menu" id="export-menu">
+          <a href="#" id="dl-pdf" target="_blank">📄 Executive Audit Report (PDF)</a>
+          <a href="#" id="dl-bundle" target="_blank">🔐 Tamper-Proof Audit Package (.ZIP)</a>
+          <a href="#" id="dl-memo" target="_blank">📑 Deal Memo & Recommendations (JSON)</a>
+          <a href="#" id="dl-json" target="_blank">📦 Full Machine Data (JSON)</a>
+          <a href="#" id="dl-aibom-native" target="_blank">📋 AI Ingredients List (Native AIBOM)</a>
+          <a href="#" id="dl-cyclonedx" target="_blank">🌐 Security Standard Ingredients (CycloneDX)</a>
+          <a href="#" id="dl-manifest" target="_blank">🔒 Digital Fingerprint & Seal</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Metric Quick Summary Strip -->
+  <section class="summary-strip">
+    <div class="kpi-card">
+      <div class="kpi-label">
+        True AI Automation
+        <span class="term-tip" data-tooltip="Percentage of customer requests solved 100% by AI without any human employee stepping in. Higher is better.">!</span>
+      </div>
+      <div class="kpi-value" id="kpi-autonomy">--%</div>
+      <div class="kpi-sub" id="kpi-hir">--% Human Staff Assistance</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">
+        Actual Cost Per Task
+        <span class="term-tip" data-tooltip="The real AI computing cost paid to solve one customer request. Lower is better.">!</span>
+      </div>
+      <div class="kpi-value" id="kpi-cost">$0.0000</div>
+      <div class="kpi-sub" id="kpi-cost-status">Status: MEASURED</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">
+        Cost Spike on System Error
+        <span class="term-tip" data-tooltip="When an outside tool or database fails, the AI enters retry loops. This shows how many times more expensive the task becomes during retries.">!</span>
+      </div>
+      <div class="kpi-value" id="kpi-cascade">1.0x</div>
+      <div class="kpi-sub" id="kpi-cascade-pct">0% Tasks Caught in Retry Loops</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">
+        Quality Check Overhead
+        <span class="term-tip" data-tooltip="Also known as the 'Trust Tax': The extra computing cost spent on automated AI judges to double-check that answers are accurate and safe.">!</span>
+      </div>
+      <div class="kpi-value" id="kpi-trust-tax">--%</div>
+      <div class="kpi-sub" id="kpi-eval-coverage">Quality Tested: --% of Tasks</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">
+        Single Vendor Risk
+        <span class="term-tip" data-tooltip="Herfindahl-Hirschman Index (HHI): Measures how heavily the company relies on one provider (like OpenAI). High concentration means risk if that provider raises prices or goes down.">!</span>
+      </div>
+      <div class="kpi-value" id="kpi-hhi">--</div>
+      <div class="kpi-sub" id="kpi-vendor-share">--% Single Vendor Share</div>
+    </div>
+  </section>
+
+  <!-- Main Workspace Tabs -->
+  <main class="app-main">
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="tab-claims">
+        <span class="tab-num">1</span> Pitch vs. Reality Check
+      </button>
+      <button class="tab-btn" data-tab="tab-aibom">
+        <span class="tab-num">2</span> AI Ingredients List (AIBOM)
+        <span class="term-tip" data-tooltip="AI Bill of Materials (AIBOM): An itemized list of all foundation models, external tools, APIs, and databases powering this application.">!</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-cascades">
+        <span class="tab-num">3</span> Outages & Bottlenecks
+        <span class="term-tip" data-tooltip="Single Points of Failure (SPOF) & Cascades: Identifies fragile components where one error causes an expensive retry loop or a complete system crash.">!</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-evidence">
+        <span class="tab-num">4</span> Proof & Evidence Graph
+        <span class="term-tip" data-tooltip="Auditable Evidence Graph: A verifiable chain connecting raw software logs directly to mathematical diligence conclusions without speculation.">!</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-manifest">
+        <span class="tab-num">5</span> Tamper-Proof Digital Seal
+        <span class="term-tip" data-tooltip="Cryptographic Chain of Custody: Uses digital fingerprints (SHA-256) to prove that audit logs, calculations, and reports have not been altered or tampered with.">!</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-toolrisk">
+        <span class="tab-num">6</span> Tool Safety & Permissions
+        <span class="term-tip" data-tooltip="Tool Risk & Privilege: Audits whether the AI has permission to perform dangerous actions (like writing to databases or executing shell commands) without human supervision.">!</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-compare">
+        <span class="tab-num">7</span> Head-to-Head Comparison
+      </button>
+      <button class="tab-btn" data-tab="tab-defensibility">
+        <span class="tab-num">8</span> Real Moat vs. Copycat Risk
+        <span class="term-tip" data-tooltip="Defensibility Moat: Evaluates whether the AI has proprietary intellectual property and custom architecture, or if it is just a simple wrapper around ChatGPT that anyone could copy in a weekend.">!</span>
+      </button>
+      <button class="tab-btn" data-tab="tab-stresstest">
+        <span class="tab-num">9</span> What-If Financial Simulator
+      </button>
+      <button class="tab-btn" data-tab="tab-memo">
+        <span class="tab-num">10</span> Deal Memo & Recommendation
+        <span class="term-tip" data-tooltip="Investment Committee (IC) Memo: Executive summary providing a clear Buy, Pass, or Conditional recommendation with a 100-day engineering action plan.">!</span>
+      </button>
+    </nav>
+
+    <!-- TAB 1: HERO CLAIM VERIFICATION MATRIX -->
+    <div class="tab-content active" id="tab-claims">
+      <div class="section-hero-header">
+        <div>
+          <h2>Founder Claims vs. Real Performance</h2>
+          <p class="section-desc">
+            Direct comparison of founder pitch statements against mathematical facts in real software logs (telemetry <span class="term-tip" data-tooltip="Telemetry: Automatic digital flight-recorder logs that capture every prompt, response, latency, error, and token count.">!</span>). Click any row to inspect source facts, calculation formulas, and audit traces.
+          </p>
+        </div>
+        <div class="filter-pills" id="claim-filters">
+          <span class="pill active" data-filter="all">All Claims (<span id="count-all">0</span>)</span>
+          <span class="pill pill-verified" data-filter="VERIFIED">Verified <span class="term-tip" data-tooltip="Verified: Supported 100% by mathematical facts in the runtime logs.">!</span> (<span id="count-verified">0</span>)</span>
+          <span class="pill pill-partial" data-filter="PARTIALLY_VERIFIED">Partial <span class="term-tip" data-tooltip="Partially Verified: True in some runs, but degraded or failed in others.">!</span> (<span id="count-partial">0</span>)</span>
+          <span class="pill pill-contradicted" data-filter="CONTRADICTED">Contradicted (False Claim) <span class="term-tip" data-tooltip="Contradicted: The software logs directly disprove what the founder claimed in the pitch deck.">!</span> (<span id="count-contradicted">0</span>)</span>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table" id="claims-table">
+          <thead>
+            <tr>
+              <th style="width: 120px;">Category</th>
+              <th style="width: 280px;">Founder Pitch Claim</th>
+              <th>Observed Log Fact</th>
+              <th style="width: 140px;">Audit Verdict</th>
+              <th style="width: 120px;">Confidence <span class="term-tip" data-tooltip="Confidence Score: Statistical strength of evidence based on sample size and telemetry coverage.">!</span></th>
+              <th style="width: 110px;">Inspect Proof</th>
+            </tr>
+          </thead>
+          <tbody id="claims-tbody">
+            <tr><td colspan="6" class="loading-state">Loading verification matrix...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: AIBOM EXPLORER -->
+    <div class="tab-content" id="tab-aibom">
+      <div class="section-hero-header">
+        <div>
+          <h2>AI Bill of Materials (AIBOM) <span class="term-tip" data-tooltip="AIBOM: An itemized supply-chain inventory listing every AI model, external tool, database, and human checkpoint in the application.">!</span></h2>
+          <p class="section-desc">
+            Itemized inventory of foundation models, external tools, databases, and human safety checkpoints detected during real execution.
+          </p>
+        </div>
+        <div class="aibom-action-bar">
+          <span class="aibom-badge" id="aibom-id-badge">ID: Loading...</span>
+          <button class="btn btn-sm btn-outline" id="btn-export-cyclonedx">Export CycloneDX 1.6 <span class="term-tip" data-tooltip="CycloneDX: The global industry standard format for software and AI supply chain bills of materials (used by cybersecurity and audit teams).">!</span></button>
+        </div>
+      </div>
+
+      <div class="aibom-grid">
+        <!-- Models Card -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>Foundation Models & AI Engines <span class="term-tip" data-tooltip="Foundation Models: The core language models (e.g. GPT-4o, Claude 3.5 Sonnet) powering the application.">!</span></h3>
+            <span class="counter-badge" id="models-count">0</span>
+          </div>
+          <div class="table-compact-container">
+            <table class="data-table-compact" id="models-table">
+              <thead>
+                <tr>
+                  <th>Model</th>
+                  <th>Provider</th>
+                  <th>Hosting Type <span class="term-tip" data-tooltip="Hosting: Cloud API (rented from vendor) vs. Self-Hosted / On-Premise (private infrastructure).">!</span></th>
+                  <th>Input Words (Tokens) <span class="term-tip" data-tooltip="Prompt Tokens: Word chunks sent into the model by the user or system.">!</span></th>
+                  <th>Output Words (Tokens) <span class="term-tip" data-tooltip="Completion Tokens: Word chunks generated as the AI's response.">!</span></th>
+                  <th>Cloud Spend (USD)</th>
+                </tr>
+              </thead>
+              <tbody id="models-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- External Tools & Sandboxes Card -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>External Tools, APIs & Automations <span class="term-tip" data-tooltip="Tools: Outside software systems the AI calls to look up info or take actions (e.g. search engines, calculators, databases).">!</span></h3>
+            <span class="counter-badge" id="tools-count">0</span>
+          </div>
+          <div class="table-compact-container">
+            <table class="data-table-compact" id="tools-table">
+              <thead>
+                <tr>
+                  <th>Tool Name</th>
+                  <th>Type</th>
+                  <th>Calls</th>
+                  <th>Failures</th>
+                  <th>Failure Rate %</th>
+                  <th>Avg Speed (Latency) <span class="term-tip" data-tooltip="Latency: Speed of response in milliseconds. High latency slows down user experience.">!</span></th>
+                </tr>
+              </thead>
+              <tbody id="tools-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="aibom-grid" style="margin-top: 20px;">
+        <!-- Vector Stores Card -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>Knowledge Stores & Memory (Vector Stores) <span class="term-tip" data-tooltip="Vector Stores: Specialized databases (e.g. Pinecone, Chroma) storing company documents and knowledge so the AI can retrieve facts before answering.">!</span></h3>
+          </div>
+          <div id="vector-stores-list" class="tag-card-container"></div>
+        </div>
+
+        <!-- Human Checkpoints Card -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>Human Reviewers & Safety Gates (HITL) <span class="term-tip" data-tooltip="Human-in-the-Loop (HITL): Human staff who inspect, approve, or correct the AI before an action is finalized.">!</span></h3>
+          </div>
+          <div id="human-checkpoints-list" class="tag-card-container"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: CASCADES & POTENTIAL SPOFS -->
+    <div class="tab-content" id="tab-cascades">
+      <div class="section-hero-header">
+        <div>
+          <h2>System Outages, Retries & Single Points of Failure</h2>
+          <p class="section-desc">
+            Reveals how a failure in a single tool causes an expensive chain reaction (cascade <span class="term-tip" data-tooltip="Cascade: When one tool failure causes the AI to loop, retry, and burn 3x more API tokens.">!</span>) and checks whether backup systems exist if the main vendor goes down (SPOF <span class="term-tip" data-tooltip="Single Point of Failure (SPOF): Any component handling >65% of workload without a tested backup.">!</span>).
+          </p>
+        </div>
+      </div>
+
+      <div class="panel-card" style="margin-bottom: 24px;">
+        <div class="panel-header">
+          <h3>Failure Chain Reaction & Cost Multiplier <span class="term-tip" data-tooltip="Cost Multiplier: How much more expensive a task becomes when tools fail and retry loops are triggered.">!</span></h3>
+          <span class="status-pill status-warn" id="cascade-stat-badge">Analyzing...</span>
+        </div>
+        <div class="cascade-statement" id="cascade-statement">Loading cascade economics...</div>
+        
+        <div class="cascade-flow-box" id="cascade-flow-visual">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-header">
+          <h3>Single Point of Failure (SPOF) Risk Table <span class="term-tip" data-tooltip="Single Point of Failure (SPOF): Any component that handles over 65% of the workload. If it crashes and has no tested fallback, the entire product goes down.">!</span></h3>
+        </div>
+        <p class="panel-subtext">
+          Identifies components dominating &gt;65% of workload and evaluates whether fallback backups were observed, configured, and tested in production.
+        </p>
+        <div class="table-container">
+          <table class="data-table" id="spof-table">
+            <thead>
+              <tr>
+                <th>Component</th>
+                <th>Role / Type</th>
+                <th>Workload Share %</th>
+                <th>Backup Observed? <span class="term-tip" data-tooltip="Backup Observed: Telemetry traces prove an alternate model or fallback tool is hooked up.">!</span></th>
+                <th>Backup Tested? <span class="term-tip" data-tooltip="Backup Tested: Proof that the fallback actually activated when the primary failed.">!</span></th>
+                <th>Observed Proof</th>
+                <th>Risk Status</th>
+              </tr>
+            </thead>
+            <tbody id="spof-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 4: AUDITABLE EVIDENCE GRAPH -->
+    <div class="tab-content" id="tab-evidence">
+      <div class="section-hero-header">
+        <div>
+          <h2>Verifiable Proof & Evidence Graph</h2>
+          <p class="section-desc">
+            Immutable log of telemetry-extracted facts with explicit epistemological tagging:
+            <code>[OF]</code> Observed Fact <span class="term-tip" data-tooltip="[OF] Observed Fact: Directly recorded event in the logs (e.g., exact latency timestamp or error code).">!</span>,
+            <code>[DM]</code> Derived Metric <span class="term-tip" data-tooltip="[DM] Derived Metric: Calculated value using a deterministic math formula.">!</span>,
+            <code>[MI]</code> Model Inference <span class="term-tip" data-tooltip="[MI] Model Inference: Analysis generated by an auxiliary auditor model.">!</span>,
+            <code>[AS]</code> Assumption <span class="term-tip" data-tooltip="[AS] Assumption: Stated baseline assumption (e.g. $28/hr human wage).">!</span>,
+            <code>[UC]</code> User Claim <span class="term-tip" data-tooltip="[UC] User Claim: A statement made in pitch decks that requires verification.">!</span>.
+          </p>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="data-table" id="evidence-table">
+          <thead>
+            <tr>
+              <th style="width: 90px;">Fact Code</th>
+              <th style="width: 80px;">Evidence Type</th>
+              <th style="width: 90px;">Confidence</th>
+              <th>Claim Summary</th>
+              <th>Observed Fact & Derived Metric</th>
+              <th>Verification Method & Data Source</th>
+            </tr>
+          </thead>
+          <tbody id="evidence-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 5: CRYPTOGRAPHIC CHAIN-OF-CUSTODY -->
+    <div class="tab-content" id="tab-manifest">
+      <div class="section-hero-header">
+        <div>
+          <h2>Tamper-Proof Digital Seal & Audit Manifest</h2>
+          <p class="section-desc">
+            Guarantees audit reproducibility by recording cryptographic digital fingerprints (SHA-256 <span class="term-tip" data-tooltip="SHA-256 Hash: A 64-character mathematical fingerprint. If even one character is changed in the logs or reports, the fingerprint breaks, exposing tampering.">!</span>) for input logs, formulas, pricing models, and generated files.
+          </p>
+        </div>
+      </div>
+
+      <div class="manifest-card">
+        <div class="manifest-header">
+          <div class="manifest-badge-verified">
+            <span class="seal-icon">🔒</span>
+            <div>
+              <div class="seal-title">TAMPER-PROOF AUDIT SEAL VERIFIED</div>
+              <div class="seal-sub" id="manifest-id-val">Manifest ID: MAN-XXXXXXXX</div>
+            </div>
+          </div>
+          <button class="btn btn-sm btn-outline" id="btn-copy-manifest">Copy Manifest JSON</button>
+        </div>
+
+        <div class="manifest-grid">
+          <div class="manifest-block">
+            <h4>1. Raw Telemetry Fingerprint <span class="term-tip" data-tooltip="Telemetry Digest: SHA-256 hash of the ingested runtime logs.">!</span></h4>
+            <div class="hash-box" id="manifest-input-hash">--</div>
+            <p class="manifest-note" id="manifest-trace-count">Traces Analyzed: --</p>
+          </div>
+          <div class="manifest-block">
+            <h4>2. Normalization & Pricing Versions <span class="term-tip" data-tooltip="Engine Versions: Fixed, reproducible rules and pricing models used during the audit.">!</span></h4>
+            <div class="manifest-meta-row"><span>Normalizer:</span> <code id="manifest-norm-ver">v0.1.0-norm</code></div>
+            <div class="manifest-meta-row"><span>Engine:</span> <code id="manifest-engine-ver">v0.1.0-engine</code></div>
+            <div class="manifest-meta-row"><span>Pricing Model:</span> <code id="manifest-pricing-ver">v2026_09</code></div>
+          </div>
+          <div class="manifest-block">
+            <h4>3. Evidence Graph Fingerprint <span class="term-tip" data-tooltip="Evidence Digest: SHA-256 hash of all verified facts and relationships.">!</span></h4>
+            <div class="hash-box" id="manifest-evidence-hash">--</div>
+          </div>
+          <div class="manifest-block">
+            <h4>4. Master Verification Seal (SHA-256) <span class="term-tip" data-tooltip="Master Seal: Final cryptographic hash sealing all inputs and outputs together.">!</span></h4>
+            <div class="hash-box seal-highlight" id="manifest-master-seal">--</div>
+          </div>
+        </div>
+
+        <h4 style="margin-top: 24px; margin-bottom: 12px; color: #E2E8F0;">Standardized Deliverable Package Hashes</h4>
+        <div class="table-container">
+          <table class="data-table-compact" id="artifacts-table">
+            <thead>
+              <tr>
+                <th>Audit Deliverable File</th>
+                <th>File Type</th>
+                <th>SHA-256 Digital Fingerprint</th>
+              </tr>
+            </thead>
+            <tbody id="artifacts-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: TOOL RISK & PRIVILEGE AUDIT -->
+    <div class="tab-content" id="tab-toolrisk">
+      <div class="section-hero-header">
+        <div>
+          <h2>AI Tool Safety, Permissions & Blast Radius</h2>
+          <p class="section-desc">
+            Auditing execution boundaries, privileged system/database capabilities, tool failure rates, and unsupervised action patterns across all runtime traces.
+          </p>
+        </div>
+        <div class="tool-risk-badge-box">
+          <span class="status-badge" id="tool-risk-level-badge">Risk Level: LOW</span>
+        </div>
+      </div>
+
+      <div class="summary-strip" style="margin-bottom: 1.5rem;">
+        <div class="kpi-card">
+          <div class="kpi-label">
+            Tool Risk Score
+            <span class="term-tip" data-tooltip="Tool Risk Score (0-100): Combines failure rates, system privileges, and lack of human supervision. Lower is safer.">!</span>
+          </div>
+          <div class="kpi-value" id="tool-risk-score">--</div>
+          <div class="kpi-sub">Scale 0 - 100 (Lower = Safer)</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Total Actions Run</div>
+          <div class="kpi-value" id="tool-total-invocations">--</div>
+          <div class="kpi-sub" id="tool-per-trace-sub">-- calls / trace</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Tool Error Rate %</div>
+          <div class="kpi-value" id="tool-failure-rate">--%</div>
+          <div class="kpi-sub" id="tool-failures-count">0 failures</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">
+            High / Critical Privilege
+            <span class="term-tip" data-tooltip="High/Critical Privilege: Tools that can alter databases, delete records, or execute shell commands.">!</span>
+          </div>
+          <div class="kpi-value" id="tool-high-priv-rate">--%</div>
+          <div class="kpi-sub">System & Data Mutation</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">
+            Unsupervised Workflows
+            <span class="term-tip" data-tooltip="Unconstrained Workflows: Multi-step action loops running with zero human review or signoff checkpoints.">!</span>
+          </div>
+          <div class="kpi-value" id="tool-unconstrained-traces">--</div>
+          <div class="kpi-sub">Zero Human Checkpoints</div>
+        </div>
+      </div>
+
+      <div class="content-block">
+        <h3>Tool Inventory & Reliability Profile</h3>
+        <p class="block-sub">Runtime observed tools, categorized permissions, execution counts, and error profiles.</p>
+        <div class="table-container" style="margin-top: 1rem;">
+          <table class="data-table" id="tool-inventory-table">
+            <thead>
+              <tr>
+                <th>Tool Name</th>
+                <th>Permission Level <span class="term-tip" data-tooltip="Permission Level: Read-only (safe), Internal Compute (moderate), or System / Data Mutation (high risk).">!</span></th>
+                <th>Total Runs</th>
+                <th>Errors</th>
+                <th>Failure Rate %</th>
+                <th>Avg Speed (Latency) <span class="term-tip" data-tooltip="Latency: Average time in milliseconds to complete an action.">!</span></th>
+              </tr>
+            </thead>
+            <tbody id="tool-inventory-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 7: COMPARATIVE DILIGENCE -->
+    <div class="tab-content" id="tab-compare">
+      <div class="section-hero-header">
+        <div>
+          <h2>Side-by-Side Target Company Comparison</h2>
+          <p class="section-desc">
+            Benchmark two target companies or scenarios side-by-side across autonomy, economics, concentration risk, and reliability.
+          </p>
+        </div>
+      </div>
+
+      <div class="filter-pills" style="margin-bottom: 1.5rem; display: flex; gap: 1rem; align-items: center; background: rgba(255,255,255,0.02); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color, #2a2e39);">
+        <div>
+          <label style="font-size: 0.85rem; color: #8892b0; margin-right: 0.5rem;">Target Company A:</label>
+          <select id="compare-target-a" style="background: #11141d; color: #e6edf3; border: 1px solid #30363d; padding: 6px 12px; border-radius: 6px;">
+            <option value="scenario_a" selected>Scenario A (AcmeAI Baseline)</option>
+            <option value="scenario_b">Scenario B (High Autonomy)</option>
+            <option value="scenario_c">Scenario C (Cost Blowout)</option>
+            <option value="scenario_d">Scenario D (High Retry Storm)</option>
+            <option value="scenario_f">Scenario F (98% Single-Provider)</option>
+            <option value="scenario_g">Scenario G (Zero Evaluation)</option>
+            <option value="scenario_h">Scenario H (Unpriced Models)</option>
+            <option value="scenario_i">Scenario I (Multi-Provider Balanced)</option>
+          </select>
+        </div>
+        <span style="font-weight: 700; color: #58a6ff;">VS</span>
+        <div>
+          <label style="font-size: 0.85rem; color: #8892b0; margin-right: 0.5rem;">Target Company B:</label>
+          <select id="compare-target-b" style="background: #11141d; color: #e6edf3; border: 1px solid #30363d; padding: 6px 12px; border-radius: 6px;">
+            <option value="scenario_a">Scenario A (AcmeAI Baseline)</option>
+            <option value="scenario_b">Scenario B (High Autonomy)</option>
+            <option value="scenario_c">Scenario C (Cost Blowout)</option>
+            <option value="scenario_d" selected>Scenario D (High Retry Storm)</option>
+            <option value="scenario_f">Scenario F (98% Single-Provider)</option>
+            <option value="scenario_g">Scenario G (Zero Evaluation)</option>
+            <option value="scenario_h">Scenario H (Unpriced Models)</option>
+            <option value="scenario_i">Scenario I (Multi-Provider Balanced)</option>
+          </select>
+        </div>
+        <button id="btn-run-compare" class="btn btn-primary" style="margin-left: auto;">Run Comparative Audit</button>
+      </div>
+
+      <div id="compare-results-container" style="display: none;">
+        <div class="summary-strip" style="margin-bottom: 1.5rem;">
+          <div class="kpi-card">
+            <div class="kpi-label">True Autonomy Winner</div>
+            <div class="kpi-value" id="winner-autonomy" style="font-size: 1.1rem; color: #58a6ff;">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Cost Efficiency Winner</div>
+            <div class="kpi-value" id="winner-economics" style="font-size: 1.1rem; color: #3fb950;">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">System Reliability Winner</div>
+            <div class="kpi-value" id="winner-resilience" style="font-size: 1.1rem; color: #d29922;">--</div>
+          </div>
+          <div class="kpi-card">
+            <div class="kpi-label">Governance & Safety Winner</div>
+            <div class="kpi-value" id="winner-gov" style="font-size: 1.1rem; color: #bc8cff;">--</div>
+          </div>
+        </div>
+
+        <div class="table-container">
+          <table class="data-table" id="compare-matrix-table">
+            <thead>
+              <tr>
+                <th>Audit Dimension</th>
+                <th>Metric Name</th>
+                <th id="th-target-a">Target A</th>
+                <th id="th-target-b">Target B</th>
+                <th>Delta (Difference)</th>
+                <th>Winning Edge</th>
+              </tr>
+            </thead>
+            <tbody id="compare-matrix-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 8: DEFENSIBILITY & MOAT AUDIT -->
+    <div class="tab-content" id="tab-defensibility">
+      <div class="section-hero-header">
+        <div>
+          <h2>Proprietary Moat vs. Copycat Wrapper Audit</h2>
+          <p class="section-desc">
+            Evaluates whether the target company possesses defensible proprietary architecture, private fine-tuned weights, and enterprise integrations—or is vulnerable as an easily cloned commodity wrapper around ChatGPT.
+          </p>
+        </div>
+        <div class="header-status-badge">
+          <span class="status-badge" id="moat-class-badge">PROPRIETARY COMPOUND SYSTEM</span>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">
+            Composite Moat Score
+            <span class="term-tip" data-tooltip="Moat Score (0-100): Rates competitive defensibility. High scores mean difficult to replicate; low scores mean easily cloned commodity wrapper.">!</span>
+          </div>
+          <div class="kpi-value" id="kpi-moat-score" style="color: #58a6ff;">-- / 100</div>
+          <div class="kpi-sub" id="kpi-moat-class">Classification: --</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">
+            Workflow Complexity
+            <span class="term-tip" data-tooltip="Scaffolding Complexity: Measures multi-step planning, reflection, and recovery loops vs. trivial single-prompt queries.">!</span>
+          </div>
+          <div class="kpi-value" id="kpi-scaffolding-score">-- / 25</div>
+          <div class="kpi-sub" id="kpi-spans-per-trace">-- spans / trace</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">
+            Model Independence
+            <span class="term-tip" data-tooltip="Model Sovereignty: Share of workload running on self-hosted or open-source models vs. 100% reliance on third-party cloud APIs.">!</span>
+          </div>
+          <div class="kpi-value" id="kpi-sovereignty-score">-- / 25</div>
+          <div class="kpi-sub" id="kpi-selfhosted-ratio">--% self-hosted/open</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">
+            Enterprise Connectors
+            <span class="term-tip" data-tooltip="Domain Connectors: Custom integration bridges into enterprise databases, ERPs, or internal systems.">!</span>
+          </div>
+          <div class="kpi-value" id="kpi-tool-score">-- / 25</div>
+          <div class="kpi-sub" id="kpi-connectors-count">-- enterprise connectors</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">
+            Estimated Cloning Barrier
+            <span class="term-tip" data-tooltip="Cloning Barrier: Estimated engineering months and capital required for a competitor to build an equivalent system.">!</span>
+          </div>
+          <div class="kpi-value" id="kpi-replication-months" style="color: #bc8cff;">-- mos</div>
+          <div class="kpi-sub" id="kpi-replication-cost">$0 Capital Est.</div>
+        </div>
+      </div>
+
+      <div class="panel-card" style="margin-top: 18px;">
+        <div class="panel-header">
+          <h3>Architectural Moat Assessment</h3>
+          <span class="counter-badge" id="moat-flywheel-sub">Data Flywheel: -- / 25</span>
+        </div>
+        <div class="narrative-callout" id="moat-narrative-box">
+          Analyzing target telemetry for proprietary scaffolding patterns...
+        </div>
+
+        <h4 style="margin-top: 18px; margin-bottom: 10px; font-size: 13px; color: #cbd5e1;">Defensibility Dimension Attributes</h4>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Defensibility Dimension</th>
+                <th>Observed Metric Value</th>
+                <th>Benchmark Threshold</th>
+                <th>Moat Implication</th>
+              </tr>
+            </thead>
+            <tbody id="moat-breakdown-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 9: WHAT-IF STRESS TESTING & LABOR ECONOMICS -->
+    <div class="tab-content" id="tab-stresstest">
+      <div class="section-hero-header">
+        <div>
+          <h2>What-If Financial & Operating Stress Simulator</h2>
+          <p class="section-desc">
+            Stress-test unit economics and gross margins against customer volume growth, AI provider price changes, and fully-loaded human reviewer labor costs.
+          </p>
+        </div>
+      </div>
+
+      <!-- Interactive Controls Card -->
+      <div class="panel-card" style="margin-bottom: 20px;">
+        <div class="panel-header">
+          <h3>Sensitivity & Stress Parameters</h3>
+          <button id="btn-reset-stress" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;">Reset Defaults</button>
+        </div>
+        <div class="stress-controls-grid">
+          <div class="control-group">
+            <label for="slider-volume">
+              Volume Scaling Multiple: <strong id="lbl-volume" style="color: #58a6ff;">1.0x</strong>
+              <span class="term-tip" data-tooltip="Volume Scaling: How many customer tasks the system processes monthly (from 50k to 500k tasks).">!</span>
+            </label>
+            <input type="range" id="slider-volume" min="1.0" max="10.0" step="0.5" value="1.0">
+            <span class="control-hint">Simulate 50k to 500k monthly tasks</span>
+          </div>
+
+          <div class="control-group">
+            <label for="slider-price-shock">
+              AI Provider Price Shift: <strong id="lbl-price-shock" style="color: #f59e0b;">0%</strong>
+              <span class="term-tip" data-tooltip="Price Shift: Simulates what happens if foundation model providers (OpenAI, Anthropic) raise or lower API token prices.">!</span>
+            </label>
+            <input type="range" id="slider-price-shock" min="-40" max="100" step="5" value="0">
+            <span class="control-hint">Foundation model API pricing change</span>
+          </div>
+
+          <div class="control-group">
+            <label for="slider-labor-rate">
+              Human Reviewer Wage ($/hr): <strong id="lbl-labor-rate" style="color: #ec4899;">$28/hr</strong>
+              <span class="term-tip" data-tooltip="Operator Wage: Fully-loaded hourly compensation for human staff who review and correct AI outputs.">!</span>
+            </label>
+            <input type="range" id="slider-labor-rate" min="15" max="80" step="1" value="28">
+            <span class="control-hint">Fully-loaded human reviewer compensation</span>
+          </div>
+
+          <div class="control-group">
+            <label for="slider-customer-price">
+              Customer Price Charged: <strong id="lbl-customer-price" style="color: #10b981;">$0.050</strong>
+              <span class="term-tip" data-tooltip="Customer Price: Revenue charged to the end customer per completed task.">!</span>
+            </label>
+            <input type="range" id="slider-customer-price" min="0.01" max="0.30" step="0.005" value="0.05">
+            <span class="control-hint">Revenue charged to customer per resolved task</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stress KPI Comparison -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">
+            Projected Gross Margin
+            <span class="term-tip" data-tooltip="Gross Margin %: (Revenue - Total Direct Costs) / Revenue. Healthy software businesses target >70%.">!</span>
+          </div>
+          <div class="kpi-value" id="stress-gross-margin">--%</div>
+          <div class="kpi-sub" id="stress-base-margin">Baseline: --%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">
+            Fully-Loaded Cost Per Task
+            <span class="term-tip" data-tooltip="Fully-Loaded Cost: AI API fees + cloud compute + human reviewer labor per task.">!</span>
+          </div>
+          <div class="kpi-value" id="stress-unit-cost">$0.0000</div>
+          <div class="kpi-sub" id="stress-labor-cost">Labor: $0.0000 / task</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Monthly Operating Spend</div>
+          <div class="kpi-value" id="stress-monthly-spend">$0</div>
+          <div class="kpi-sub" id="stress-monthly-tasks">0 tasks / month</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">
+            Target Price for 70% Margin
+            <span class="term-tip" data-tooltip="Target Price: Minimum price per task required to deliver standard 70% software gross margins.">!</span>
+          </div>
+          <div class="kpi-value" id="stress-target-price" style="color: #10b981;">$0.0000</div>
+          <div class="kpi-sub">Target SaaS pricing required</div>
+        </div>
+      </div>
+
+      <!-- Verdict Banner -->
+      <div class="stress-verdict-card" id="stress-verdict-box" style="margin-top: 18px;">
+        <div class="verdict-header">
+          <span class="status-badge" id="stress-verdict-badge">STRESS STATUS</span>
+          <span id="stress-verdict-title" style="font-weight: 600;">Margin Health Assessment</span>
+        </div>
+        <p id="stress-verdict-detail" style="margin-top: 6px; font-size: 12px; color: #cbd5e1;"></p>
+      </div>
+
+      <!-- Sensitivity Matrices -->
+      <div class="two-col-grid" style="margin-top: 20px;">
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>Volume vs. AI Provider Price Shift (Gross Margin %)</h3>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="matrix-volume-shock">
+              <thead>
+                <tr>
+                  <th>Volume Multiple</th>
+                  <th>-20% Price</th>
+                  <th>Base Price</th>
+                  <th>+25% Price</th>
+                  <th>+50% Price</th>
+                </tr>
+              </thead>
+              <tbody id="matrix-volume-shock-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>Human Review Rate (HIR) vs. Reviewer Wage (Gross Margin %)</h3>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="matrix-hir-wage">
+              <thead>
+                <tr>
+                  <th>HIR Rate</th>
+                  <th>$20/hr</th>
+                  <th>$30/hr</th>
+                  <th>$45/hr</th>
+                </tr>
+              </thead>
+              <tbody id="matrix-hir-wage-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 10: INVESTMENT COMMITTEE DILIGENCE MEMO -->
+    <div class="tab-content" id="tab-memo">
+      <div class="section-hero-header">
+        <div>
+          <h2>Investment Committee (IC) Deal Memo</h2>
+          <p class="section-desc">
+            Executive investment memo synthesizing pitch claim integrity, autonomous defensibility, unit economics, tool blast radius, and 100-day technical remediation roadmap.
+          </p>
+        </div>
+        <div class="header-status-badge">
+          <span class="status-badge status-verified" id="memo-deal-verdict-badge">RECOMMENDED</span>
+        </div>
+      </div>
+
+      <!-- Hero Verdict Card -->
+      <div class="memo-verdict-hero">
+        <div class="memo-score-dial">
+          <div class="memo-dial-number" id="memo-risk-score">--</div>
+          <div class="memo-dial-label">
+            Diligence Risk Score
+            <span class="term-tip" data-tooltip="Diligence Risk Score (0-100): Lower is safer (Low Risk: <25, Moderate: 25-50, High: 50-75, Critical Dealbreaker: >75).">!</span>
+          </div>
+          <div class="memo-dial-class" id="memo-risk-class">MODERATE RISK</div>
+        </div>
+        <div class="memo-narrative-column">
+          <div class="memo-deal-label">Official Deal Recommendation</div>
+          <h3 id="memo-deal-title" style="color: #f1f5f9; margin-top: 4px;">Evaluating...</h3>
+          <p id="memo-deal-summary" style="margin-top: 8px; font-size: 13px; line-height: 1.5; color: #cbd5e1;"></p>
+        </div>
+      </div>
+
+      <!-- Flag Distribution Bar -->
+      <div class="flag-summary-strip">
+        <div class="flag-badge-pill flag-red">
+          <span class="flag-count" id="count-red-flags">0</span> Critical Red Flags
+          <span class="term-tip" data-tooltip="Red Flag: Severe flaw that threatens business viability, safety, or core pitch claims.">!</span>
+        </div>
+        <div class="flag-badge-pill flag-yellow">
+          <span class="flag-count" id="count-yellow-flags">0</span> Operational Yellow Flags
+          <span class="term-tip" data-tooltip="Yellow Flag: Manageable operational, cost, or dependency concern requiring covenants.">!</span>
+        </div>
+        <div class="flag-badge-pill flag-green">
+          <span class="flag-count" id="count-green-flags">0</span> Verified Strengths
+          <span class="term-tip" data-tooltip="Green Flag: Proven competitive advantage confirmed by deterministic runtime data.">!</span>
+        </div>
+      </div>
+
+      <!-- Flags Breakdown -->
+      <div class="panel-card" style="margin-top: 20px;">
+        <div class="panel-header">
+          <h3>Flag Audit & Risk Register</h3>
+        </div>
+        <div class="flags-list" id="memo-flags-container"></div>
+      </div>
+
+      <!-- 100-Day Remediation Playbook -->
+      <div class="panel-card" style="margin-top: 20px;">
+        <div class="panel-header">
+          <h3>100-Day Technical Remediation Playbook <span class="term-tip" data-tooltip="Remediation Playbook: Specific engineering milestones to negotiate into term sheets and execute within the first 100 days post-investment.">!</span></h3>
+          <span class="counter-badge">Pre-Close & Post-Close Milestones</span>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 140px;">Timeline Priority</th>
+                <th style="width: 220px;">Initiative</th>
+                <th>Engineering Action Plan</th>
+                <th style="width: 200px;">KPI Target</th>
+              </tr>
+            </thead>
+            <tbody id="memo-remediation-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- CLAIM DETAIL INSPECTOR DRAWER -->
+  <div class="drawer-overlay" id="drawer-overlay"></div>
+  <aside class="claim-drawer" id="claim-drawer">
+    <div class="drawer-header">
+      <div>
+        <span class="drawer-category" id="drawer-category">CATEGORY</span>
+        <h3 id="drawer-title">Claim Title</h3>
+      </div>
+      <button class="drawer-close" id="drawer-close">&times;</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Status Box -->
+      <div class="drawer-status-card" id="drawer-status-card">
+        <div class="drawer-status-header">
+          <span class="status-badge" id="drawer-status-badge">STATUS</span>
+          <span class="confidence-badge" id="drawer-confidence-badge">Confidence: High</span>
+        </div>
+        <p class="drawer-status-reason" id="drawer-status-reason"></p>
+      </div>
+
+      <!-- Provenance Chain Steps -->
+      <div class="drawer-section">
+        <h4>1. Founder Pitch Deck Claim [UC] <span class="term-tip" data-tooltip="[UC] User Claim: The unverified statement made in founder pitch materials.">!</span></h4>
+        <div class="drawer-callout" id="drawer-claim-text"></div>
+        <div class="drawer-meta-sub" id="drawer-source">Source: Series A Pitch Deck</div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>2. Observed Telemetry Fact [OF] <span class="term-tip" data-tooltip="[OF] Observed Fact: Directly recorded event in the runtime logs.">!</span></h4>
+        <div class="drawer-callout drawer-callout-fact" id="drawer-observed-fact"></div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>3. Deterministic Derived Metric [DM] <span class="term-tip" data-tooltip="[DM] Derived Metric: Precise formula calculated from the raw facts.">!</span></h4>
+        <div class="drawer-callout drawer-callout-metric" id="drawer-derived-metric"></div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>4. Verification Methodology & Boundary Formulas</h4>
+        <div class="drawer-text" id="drawer-methodology"></div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>5. Data Source & Provenance</h4>
+        <div class="drawer-text" id="drawer-datasource"></div>
+      </div>
+
+      <div class="drawer-section">
+        <h4>6. Scope Bounds & Technical Limitations</h4>
+        <div class="drawer-text limitation-text" id="drawer-limitations"></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- EXPERIMENTAL TELEMETRY UPLOAD MODAL -->
+  <div class="modal-overlay" id="upload-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3>Upload Telemetry Traces <span class="badge-experimental">Experimental</span> <span class="term-tip" data-tooltip="Telemetry Traces: Event files exported from OpenTelemetry or monitoring tools.">!</span></h3>
+          <p class="modal-sub">Direct ingestion of target AI runtime trace exports for due diligence audit.</p>
+        </div>
+        <button class="modal-close" id="modal-close">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="format-selector">
+          <label>
+            <input type="radio" name="upload-format" value="otel" checked>
+            <span>OpenTelemetry GenAI Traces (OTLP JSON) <span class="term-tip" data-tooltip="OpenTelemetry: The global industry standard format for software event logging and tracing.">!</span></span>
+          </label>
+          <label>
+            <input type="radio" name="upload-format" value="native">
+            <span>Native Agentic Diligence JSON</span>
+          </label>
+        </div>
+
+        <div class="upload-dropzone" id="dropzone">
+          <span class="drop-icon">📁</span>
+          <p>Drag and drop trace JSON file here, or <span class="browse-link">browse</span></p>
+          <input type="file" id="file-input" accept=".json" style="display: none;">
+          <div class="selected-file" id="selected-file-name"></div>
+        </div>
+
+        <div class="upload-options">
+          <label for="upload-target-name">Target Company Name:</label>
+          <input type="text" id="upload-target-name" placeholder="e.g. TargetAI Inc.">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-upload">Cancel</button>
+        <button class="btn btn-primary" id="btn-submit-upload" disabled>Process & Verify Traces</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

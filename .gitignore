@@ -16,6 +16,7 @@ ENV/
 *.zip
 diligence_package_*.json
 diligence_report_*.json
+diligence_memo_*.json
 audit_manifest_*.json
 aibom_*.json
 acme_ai_*.json

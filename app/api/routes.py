@@ -15,6 +15,9 @@ from app.analysis.dependency import analyze_provider_dependencies
 from app.analysis.cascade import analyze_failure_cascades
 from app.analysis.tool_risk import analyze_tool_execution_risk
 from app.analysis.comparison import compare_diligence_targets
+from app.analysis.defensibility import analyze_defensibility_and_moat
+from app.analysis.stress_test import simulate_stress_test_economics
+from app.analysis.memo import generate_investment_committee_memo
 from app.reporting.bundle import create_diligence_bundle, verify_diligence_bundle
 from app.aibom.generator import generate_native_aibom, export_cyclonedx_aibom
 from app.reporting.builder import build_due_diligence_report
@@ -195,6 +198,49 @@ def get_company_aibom(company_id: str, db: Session = Depends(get_db)):
 def get_company_tool_risk(company_id: str, db: Session = Depends(get_db)):
     """Returns tool privilege and sandbox execution risk assessment."""
     return analyze_tool_execution_risk(db, company_id)
+
+@router.get("/companies/{company_id}/defensibility")
+def get_company_defensibility(company_id: str, db: Session = Depends(get_db)):
+    """Returns defensibility score, proprietary scaffolding, and moat analysis."""
+    try:
+        return analyze_defensibility_and_moat(db, company_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/companies/{company_id}/stress-test")
+def run_company_stress_test(
+    company_id: str,
+    payload: Dict[str, Any] = Body(default={}),
+    db: Session = Depends(get_db)
+):
+    """
+    Runs sensitivity and operational stress testing against token inflation,
+    provider price shocks, volume scaling, and fully-loaded human labor economics.
+    """
+    try:
+        vol = float(payload.get("volume_multiplier", 1.0))
+        shock = float(payload.get("provider_price_shock_pct", 0.0))
+        wage = float(payload.get("human_hourly_wage_usd", 28.0))
+        price = float(payload.get("target_customer_price_per_task_usd", 0.05))
+        tasks = int(payload.get("baseline_monthly_tasks", 50000))
+        return simulate_stress_test_economics(
+            db, company_id,
+            volume_multiplier=vol,
+            provider_price_shock_pct=shock,
+            human_hourly_wage_usd=wage,
+            target_customer_price_per_task_usd=price,
+            baseline_monthly_tasks=tasks
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/companies/{company_id}/memo")
+def get_company_memo(company_id: str, db: Session = Depends(get_db)):
+    """Returns Investment Committee Executive Diligence Memo, Red Flags, and Deal Verdict."""
+    try:
+        return generate_investment_committee_memo(db, company_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/companies/{company_id}/bundle")
 def download_diligence_bundle(company_id: str, db: Session = Depends(get_db)):

@@ -52,7 +52,12 @@ def create_diligence_bundle(report_data: Dict[str, Any], output_zip_path: Option
         with open(pdf_path, "rb") as f:
             files_to_pack["diligence_report.pdf"] = f.read()
             
-    # 6. Generate checksums.sha256
+    # 6. Diligence Memo JSON
+    memo_data = report_data.get("memo")
+    if memo_data:
+        files_to_pack["diligence_memo.json"] = json.dumps(memo_data, indent=2, default=str).encode("utf-8")
+            
+    # 7. Generate checksums.sha256
     checksum_lines = []
     for filename in sorted(files_to_pack.keys()):
         file_hash = compute_sha256(files_to_pack[filename])

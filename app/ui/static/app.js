@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupDrawer();
   setupUploadModal();
   setupComparison();
+  setupStressSimulatorControls();
   
   // Initial load: run default benchmark (scenario_a)
   loadScenario("scenario_a");
@@ -95,8 +96,10 @@ function renderReport(data) {
   renderAIBOM(data.aibom || {});
   renderCascadesAndSPOF(data.cascades || {}, data.dependencies || {});
   renderEvidenceGraph(data.evidence_records || []);
-  renderManifest(data.audit_manifest || {});
   renderToolRisk(data.tool_risk || {});
+  renderDefensibility(data.defensibility || {});
+  renderStressTest(data.stress_test || {});
+  renderDiligenceMemo(data.memo || {});
   
   // Download Links
   setupDownloadLinks(data);
@@ -569,6 +572,9 @@ function setupDownloadLinks(data) {
   const dlBundle = document.getElementById("dl-bundle");
   if (dlBundle) dlBundle.href = `/api/v1/companies/${compId}/bundle`;
 
+  const dlMemo = document.getElementById("dl-memo");
+  if (dlMemo) dlMemo.href = `/api/v1/companies/${compId}/memo`;
+
   const dlJson = document.getElementById("dl-json");
   if (dlJson) dlJson.href = `/api/v1/companies/${compId}/package`;
   
@@ -700,4 +706,327 @@ function renderComparisonResults(data) {
     `;
     tbody.appendChild(tr);
   });
+}
+
+// 8. Defensibility & Moat Audit
+function renderDefensibility(moat) {
+  const scoreEl = document.getElementById("kpi-moat-score");
+  if (scoreEl) scoreEl.innerText = `${moat.moat_score ?? "--"} / 100`;
+
+  const classBadge = document.getElementById("moat-class-badge");
+  const classSub = document.getElementById("kpi-moat-class");
+  const mClass = moat.moat_classification || "COMMODITY_WRAPPER";
+  if (classBadge) {
+    classBadge.innerText = mClass.replace(/_/g, " ");
+    classBadge.className = `status-badge ${mClass.includes("MOAT") || mClass.includes("COMPOUND") ? "status-verified" : (mClass.includes("LIGHT") ? "status-partially-verified" : "status-contradicted")}`;
+  }
+  if (classSub) classSub.innerText = `Classification: ${mClass.replace(/_/g, " ")}`;
+
+  const scaffEl = document.getElementById("kpi-scaffolding-score");
+  if (scaffEl) scaffEl.innerText = `${moat.scaffolding_complexity_score ?? "--"} / 25`;
+  const spansPerTraceEl = document.getElementById("kpi-spans-per-trace");
+  if (spansPerTraceEl) spansPerTraceEl.innerText = `${moat.breakdown?.avg_spans_per_trace ?? "--"} spans / trace`;
+
+  const sovEl = document.getElementById("kpi-sovereignty-score");
+  if (sovEl) sovEl.innerText = `${moat.weight_sovereignty_score ?? "--"} / 25`;
+  const selfHostedRatioEl = document.getElementById("kpi-selfhosted-ratio");
+  if (selfHostedRatioEl) selfHostedRatioEl.innerText = `${moat.breakdown?.self_hosted_llm_ratio_pct ?? "--"}% self-hosted/open`;
+
+  const toolEl = document.getElementById("kpi-tool-score");
+  if (toolEl) toolEl.innerText = `${moat.tool_integration_score ?? "--"} / 25`;
+  const connEl = document.getElementById("kpi-connectors-count");
+  if (connEl) connEl.innerText = `${moat.breakdown?.enterprise_connectors_count ?? 0} enterprise connectors`;
+
+  const repMosEl = document.getElementById("kpi-replication-months");
+  if (repMosEl) repMosEl.innerText = `~${moat.estimated_replication_months ?? "--"} mos`;
+  const repCostEl = document.getElementById("kpi-replication-cost");
+  if (repCostEl) repCostEl.innerText = `$${Number(moat.estimated_replication_cost_usd || 0).toLocaleString()} Capital Est.`;
+
+  const narrativeBox = document.getElementById("moat-narrative-box");
+  if (narrativeBox) narrativeBox.innerText = moat.verdict_summary || "No assessment generated.";
+
+  const flywheelSub = document.getElementById("moat-flywheel-sub");
+  if (flywheelSub) flywheelSub.innerText = `Data Flywheel: ${moat.data_flywheel_score ?? "--"} / 25`;
+
+  const tbody = document.getElementById("moat-breakdown-tbody");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  const b = moat.breakdown || {};
+  const rows = [
+    {
+      dim: "Scaffolding Hierarchy",
+      val: `${b.hierarchy_ratio_pct ?? 0}% nested spans`,
+      bench: "> 60% for multi-agent loops",
+      imp: b.hierarchy_ratio_pct >= 60 ? "Deep cognitive agent structure" : "Shallow orchestration"
+    },
+    {
+      dim: "Model Sovereignty",
+      val: `${b.self_hosted_llm_ratio_pct ?? 0}% self-hosted weights (${b.unique_models_utilized ?? 0} models)`,
+      bench: "> 20% self-hosted or multi-vendor",
+      imp: b.self_hosted_llm_ratio_pct > 0 ? "Tangible model sovereignty" : "100% cloud API dependency"
+    },
+    {
+      dim: "Proprietary Connectors",
+      val: `${b.enterprise_connectors_count ?? 0} / ${b.unique_tools_count ?? 0} custom enterprise tools`,
+      bench: "> 50% custom enterprise tools",
+      imp: b.enterprise_connectors_count > 0 ? "High enterprise integration switching barrier" : "Standard public web tooling"
+    },
+    {
+      dim: "Continuous Evaluation Loop",
+      val: `${b.evaluation_coverage_pct ?? 0}% evaluation coverage`,
+      bench: "> 40% automated eval instrumentation",
+      imp: b.evaluation_coverage_pct >= 40 ? "Active data flywheel improving agent over time" : "Unmonitored runtime operations"
+    },
+    {
+      dim: "Replication Barrier",
+      val: `~${moat.estimated_replication_months ?? 0} engineering months`,
+      bench: "> 6 months for venture defensibility",
+      imp: moat.estimated_replication_months >= 6 ? "High competitor replication friction" : "Rapidly clonable commodity wrapper"
+    }
+  ];
+
+  rows.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(r.dim)}</strong></td>
+      <td style="font-family: monospace;">${escapeHtml(r.val)}</td>
+      <td style="color: #8892b0;">${escapeHtml(r.bench)}</td>
+      <td>${escapeHtml(r.imp)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// 9. What-If Stress Testing Simulator
+let stressDebounceTimeout = null;
+
+function setupStressSimulatorControls() {
+  const sliderVol = document.getElementById("slider-volume");
+  const sliderShock = document.getElementById("slider-price-shock");
+  const sliderWage = document.getElementById("slider-labor-rate");
+  const sliderPrice = document.getElementById("slider-customer-price");
+  const btnReset = document.getElementById("btn-reset-stress");
+
+  if (!sliderVol || !sliderShock || !sliderWage || !sliderPrice) return;
+
+  const onControlChange = () => {
+    document.getElementById("lbl-volume").innerText = `${sliderVol.value}x`;
+    document.getElementById("lbl-price-shock").innerText = `${Number(sliderShock.value) > 0 ? "+" : ""}${sliderShock.value}%`;
+    document.getElementById("lbl-labor-rate").innerText = `$${sliderWage.value}/hr`;
+    document.getElementById("lbl-customer-price").innerText = `$${Number(sliderPrice.value).toFixed(3)}`;
+
+    if (stressDebounceTimeout) clearTimeout(stressDebounceTimeout);
+    stressDebounceTimeout = setTimeout(() => {
+      triggerStressRecalculation();
+    }, 250);
+  };
+
+  sliderVol.addEventListener("input", onControlChange);
+  sliderShock.addEventListener("input", onControlChange);
+  sliderWage.addEventListener("input", onControlChange);
+  sliderPrice.addEventListener("input", onControlChange);
+
+  if (btnReset) {
+    btnReset.addEventListener("click", () => {
+      sliderVol.value = 1.0;
+      sliderShock.value = 0;
+      sliderWage.value = 28;
+      sliderPrice.value = 0.05;
+      onControlChange();
+    });
+  }
+}
+
+async function triggerStressRecalculation() {
+  if (!currentCompanyId) return;
+
+  const vol = parseFloat(document.getElementById("slider-volume").value);
+  const shock = parseFloat(document.getElementById("slider-price-shock").value);
+  const wage = parseFloat(document.getElementById("slider-labor-rate").value);
+  const price = parseFloat(document.getElementById("slider-customer-price").value);
+
+  try {
+    const res = await fetch(`/api/v1/companies/${currentCompanyId}/stress-test`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        volume_multiplier: vol,
+        provider_price_shock_pct: shock,
+        human_hourly_wage_usd: wage,
+        target_customer_price_per_task_usd: price
+      })
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const data = await res.json();
+    renderStressTest(data);
+  } catch (err) {
+    console.error("Stress recalculation failed:", err);
+  }
+}
+
+function renderStressTest(stress) {
+  const strsd = stress.stressed_economics || {};
+  const base = stress.baseline_economics || {};
+  const verdict = stress.vulnerability_verdict || {};
+
+  const grossEl = document.getElementById("stress-gross-margin");
+  if (grossEl) {
+    const gm = strsd.gross_margin_pct ?? 0;
+    grossEl.innerText = `${gm}%`;
+    grossEl.style.color = gm >= 70 ? "#4ade80" : (gm >= 40 ? "#fbbf24" : "#f87171");
+  }
+
+  const baseEl = document.getElementById("stress-base-margin");
+  if (baseEl) baseEl.innerText = `Baseline: ${base.gross_margin_pct ?? "--"}%`;
+
+  const unitCostEl = document.getElementById("stress-unit-cost");
+  if (unitCostEl) unitCostEl.innerText = `$${Number(strsd.fully_loaded_cost_per_task_usd || 0).toFixed(4)}`;
+
+  const laborCostEl = document.getElementById("stress-labor-cost");
+  if (laborCostEl) laborCostEl.innerText = `Labor: $${Number(strsd.human_labor_cost_per_task_usd || 0).toFixed(4)} / task`;
+
+  const spendEl = document.getElementById("stress-monthly-spend");
+  if (spendEl) spendEl.innerText = `$${Number(strsd.monthly_total_cost_usd || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+
+  const tasksEl = document.getElementById("stress-monthly-tasks");
+  if (tasksEl) tasksEl.innerText = `${Number(strsd.monthly_tasks || 0).toLocaleString()} tasks / month`;
+
+  const targetPriceEl = document.getElementById("stress-target-price");
+  if (targetPriceEl) targetPriceEl.innerText = `$${Number(strsd.price_for_70pct_margin_usd || 0).toFixed(4)}`;
+
+  const verdictBadge = document.getElementById("stress-verdict-badge");
+  const verdictTitle = document.getElementById("stress-verdict-title");
+  const verdictDetail = document.getElementById("stress-verdict-detail");
+  if (verdictBadge) {
+    const st = verdict.status || "SUSTAINABLE_SOFTWARE_MARGINS";
+    verdictBadge.innerText = st.replace(/_/g, " ");
+    verdictBadge.className = `status-badge ${st.includes("NEGATIVE") ? "status-contradicted" : (st.includes("COMPRESSION") ? "status-partially-verified" : "status-verified")}`;
+  }
+  if (verdictTitle) verdictTitle.innerText = verdict.status?.replace(/_/g, " ") || "Margin Health";
+  if (verdictDetail) verdictDetail.innerText = verdict.statement || "";
+
+  // Render Matrices
+  const grids = stress.sensitivity_grids || {};
+  const tbodyVol = document.getElementById("matrix-volume-shock-tbody");
+  if (tbodyVol) {
+    tbodyVol.innerHTML = "";
+    (grids.volume_and_price_shock_margins || []).forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><strong>${escapeHtml(row.volume_multiple)} (${Number(row.monthly_tasks).toLocaleString()} tasks)</strong></td>
+        <td style="color: ${row.shock_minus20pct >= 70 ? '#4ade80' : (row.shock_minus20pct >= 40 ? '#fbbf24' : '#f87171')}">${row.shock_minus20pct}%</td>
+        <td style="color: ${row.shock_0pct >= 70 ? '#4ade80' : (row.shock_0pct >= 40 ? '#fbbf24' : '#f87171')}">${row.shock_0pct}%</td>
+        <td style="color: ${row.shock_25pct >= 70 ? '#4ade80' : (row.shock_25pct >= 40 ? '#fbbf24' : '#f87171')}">${row.shock_25pct}%</td>
+        <td style="color: ${row.shock_50pct >= 70 ? '#4ade80' : (row.shock_50pct >= 40 ? '#fbbf24' : '#f87171')}">${row.shock_50pct}%</td>
+      `;
+      tbodyVol.appendChild(tr);
+    });
+  }
+
+  const tbodyHir = document.getElementById("matrix-hir-wage-tbody");
+  if (tbodyHir) {
+    tbodyHir.innerHTML = "";
+    (grids.hir_and_wage_margins || []).forEach(row => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><strong>${escapeHtml(row.hir_rate_pct)} HIR</strong></td>
+        <td style="color: ${row.wage_usd20 >= 70 ? '#4ade80' : (row.wage_usd20 >= 40 ? '#fbbf24' : '#f87171')}">${row.wage_usd20}%</td>
+        <td style="color: ${row.wage_usd30 >= 70 ? '#4ade80' : (row.wage_usd30 >= 40 ? '#fbbf24' : '#f87171')}">${row.wage_usd30}%</td>
+        <td style="color: ${row.wage_usd45 >= 70 ? '#4ade80' : (row.wage_usd45 >= 40 ? '#fbbf24' : '#f87171')}">${row.wage_usd45}%</td>
+      `;
+      tbodyHir.appendChild(tr);
+    });
+  }
+}
+
+// 10. Investment Committee Diligence Memo
+function renderDiligenceMemo(memo) {
+  const badge = document.getElementById("memo-deal-verdict-badge");
+  const verdict = memo.deal_verdict || "RECOMMENDED";
+  if (badge) {
+    badge.innerText = verdict.replace(/_/g, " ");
+    badge.className = `status-badge ${verdict === "RECOMMENDED" ? "status-verified" : (verdict.includes("CONDITIONAL") ? "status-partially-verified" : "status-contradicted")}`;
+  }
+
+  const riskScoreEl = document.getElementById("memo-risk-score");
+  if (riskScoreEl) riskScoreEl.innerText = memo.diligence_risk_score ?? "--";
+
+  const riskClassEl = document.getElementById("memo-risk-class");
+  if (riskClassEl) riskClassEl.innerText = `${memo.risk_classification || "MODERATE"} RISK`;
+
+  const dealTitleEl = document.getElementById("memo-deal-title");
+  if (dealTitleEl) dealTitleEl.innerText = verdict.replace(/_/g, " ");
+
+  const dealSummaryEl = document.getElementById("memo-deal-summary");
+  if (dealSummaryEl) dealSummaryEl.innerText = memo.executive_verdict_summary || "";
+
+  const flags = memo.flags_summary || {};
+  const cRed = document.getElementById("count-red-flags");
+  if (cRed) cRed.innerText = flags.red_flags_count ?? 0;
+  const cYellow = document.getElementById("count-yellow-flags");
+  if (cYellow) cYellow.innerText = flags.yellow_flags_count ?? 0;
+  const cGreen = document.getElementById("count-green-flags");
+  if (cGreen) cGreen.innerText = flags.green_flags_count ?? 0;
+
+  // Render Flag Cards
+  const flagsContainer = document.getElementById("memo-flags-container");
+  if (flagsContainer) {
+    flagsContainer.innerHTML = "";
+    
+    (memo.red_flags || []).forEach(f => {
+      const card = document.createElement("div");
+      card.className = "flag-item-card border-red";
+      card.innerHTML = `
+        <div class="flag-item-header">
+          <span class="flag-item-title" style="color: #f87171;">[!] ${escapeHtml(f.title)}</span>
+          <span class="status-badge status-contradicted">${escapeHtml(f.category)}</span>
+        </div>
+        <p class="flag-item-detail">${escapeHtml(f.detail)}</p>
+      `;
+      flagsContainer.appendChild(card);
+    });
+
+    (memo.yellow_flags || []).forEach(f => {
+      const card = document.createElement("div");
+      card.className = "flag-item-card border-yellow";
+      card.innerHTML = `
+        <div class="flag-item-header">
+          <span class="flag-item-title" style="color: #fbbf24;">[?] ${escapeHtml(f.title)}</span>
+          <span class="status-badge status-partially-verified">${escapeHtml(f.category)}</span>
+        </div>
+        <p class="flag-item-detail">${escapeHtml(f.detail)}</p>
+      `;
+      flagsContainer.appendChild(card);
+    });
+
+    (memo.green_flags || []).forEach(f => {
+      const card = document.createElement("div");
+      card.className = "flag-item-card border-green";
+      card.innerHTML = `
+        <div class="flag-item-header">
+          <span class="flag-item-title" style="color: #4ade80;">[✓] ${escapeHtml(f.title)}</span>
+          <span class="status-badge status-verified">${escapeHtml(f.category)}</span>
+        </div>
+        <p class="flag-item-detail">${escapeHtml(f.detail)}</p>
+      `;
+      flagsContainer.appendChild(card);
+    });
+  }
+
+  // Render Remediation Playbook Table
+  const tbodyRem = document.getElementById("memo-remediation-tbody");
+  if (tbodyRem) {
+    tbodyRem.innerHTML = "";
+    (memo.remediation_playbook || []).forEach(item => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><strong style="color: #58a6ff;">${escapeHtml(item.priority)}</strong></td>
+        <td><strong>${escapeHtml(item.initiative)}</strong></td>
+        <td style="color: #cbd5e1;">${escapeHtml(item.action)}</td>
+        <td style="font-family: var(--font-mono); font-size: 11px; color: #4ade80;">${escapeHtml(item.kpi_target)}</td>
+      `;
+      tbodyRem.appendChild(tr);
+    });
+  }
 }

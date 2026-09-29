@@ -223,8 +223,137 @@ def generate_pdf_report(report_data: Dict[str, Any], output_path: str) -> str:
         story.append(t_spof)
     story.append(Spacer(1, 6))
     
-    # 6. Data Coverage & Scope Limitations
-    story.append(Paragraph("6. Data Coverage & Technical Limitations", heading2_style))
+    # 6. Tool Execution & Privilege Risk Assessment
+    if "tool_risk" in report_data:
+        tr = report_data["tool_risk"]
+        story.append(Paragraph("6. Tool Privilege & Execution Risk Assessment", heading2_style))
+        lvl = tr.get("risk_level", "LOW")
+        lvl_color = "#DC2626" if lvl in ["CRITICAL", "HIGH"] else ("#D97706" if lvl == "ELEVATED" else "#16A34A")
+        story.append(Paragraph(
+            f"Tool Risk Score: <b>{tr.get('tool_risk_score', 0)} / 100</b> (<font color='{lvl_color}'><b>{lvl} RISK</b></font>) | "
+            f"Total Tool Invocations: <b>{tr.get('total_tool_calls', 0)}</b> ({tr.get('tool_invocation_rate_per_trace', 0)} calls/trace) | "
+            f"Failure Rate: <b>{tr.get('tool_failure_rate_pct', 0)}%</b> ({tr.get('tool_failure_count', 0)} errors)<br/>"
+            f"Privilege Distribution: <b>{tr.get('critical_privilege_calls', 0)}</b> Critical (Shell/Exec), "
+            f"<b>{tr.get('high_privilege_calls', 0)}</b> High (DB Mutation), "
+            f"<b>{tr.get('medium_privilege_calls', 0)}</b> Medium (APIs/Comm), "
+            f"<b>{tr.get('low_privilege_calls', 0)}</b> Low (Read-only/RAG). "
+            f"Unconstrained Traces: <b>{tr.get('unconstrained_execution_traces_count', 0)}</b> ({tr.get('unconstrained_execution_rate_pct', 0)}%).",
+            body_style
+        ))
+        
+        # Tool Inventory sample table
+        tool_inv = tr.get("tool_inventory", [])
+        if tool_inv:
+            tool_tbl_data = [
+                [
+                    Paragraph("<b>Tool Name</b>", body_style),
+                    Paragraph("<b>Privilege</b>", body_style),
+                    Paragraph("<b>Calls</b>", body_style),
+                    Paragraph("<b>Errors</b>", body_style),
+                    Paragraph("<b>Error %</b>", body_style),
+                    Paragraph("<b>Avg Latency</b>", body_style)
+                ]
+            ]
+            for item in tool_inv[:5]:
+                p_lvl = item.get("privilege_level", "LOW")
+                p_color = "#DC2626" if p_lvl == "CRITICAL" else ("#D97706" if p_lvl == "HIGH" else "#16A34A")
+                tool_tbl_data.append([
+                    Paragraph(item.get("tool_name", ""), body_style),
+                    Paragraph(f"<font color='{p_color}'><b>{p_lvl}</b></font>", body_style),
+                    Paragraph(str(item.get("invocation_count", 0)), body_style),
+                    Paragraph(str(item.get("error_count", 0)), body_style),
+                    Paragraph(f"{item.get('error_rate_pct', 0)}%", body_style),
+                    Paragraph(f"{item.get('avg_latency_ms', 0)} ms", body_style)
+                ])
+            t_tool = Table(tool_tbl_data, colWidths=[2.2*inch, 1.1*inch, 0.8*inch, 0.8*inch, 0.9*inch, 1.3*inch])
+            t_tool.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F1F5F9')),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('TOPPADDING', (0,0), (-1,-1), 3),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+            ]))
+            story.append(t_tool)
+        story.append(Spacer(1, 6))
+
+    # 7. Defensibility & Moat Analysis ("Wrapper vs Moat")
+    if "defensibility" in report_data:
+        moat = report_data["defensibility"]
+        story.append(Paragraph("7. Defensibility & Proprietary Moat Analysis", heading2_style))
+        m_class = moat.get("moat_classification", "COMMODITY_WRAPPER")
+        m_color = "#16A34A" if "MOAT" in m_class or "COMPOUND" in m_class else ("#D97706" if "LIGHT" in m_class else "#DC2626")
+        story.append(Paragraph(
+            f"Composite Moat Score: <b>{moat.get('moat_score', 0)} / 100</b> (<font color='{m_color}'><b>{m_class}</b></font>)<br/>"
+            f"<b>Architecture Assessment:</b> {moat.get('verdict_summary', '')}<br/>"
+            f"• Scaffolding & Graph Complexity: <b>{moat.get('scaffolding_complexity_score', 0)}/25</b> | "
+            f"• Model Sovereignty & Weights: <b>{moat.get('weight_sovereignty_score', 0)}/25</b><br/>"
+            f"• Custom Tool Integration Assets: <b>{moat.get('tool_integration_score', 0)}/25</b> | "
+            f"• Data Flywheel & Continuous Eval: <b>{moat.get('data_flywheel_score', 0)}/25</b><br/>"
+            f"Estimated Cloning Barrier: <b>{moat.get('estimated_replication_months', 0)} engineering months</b> | "
+            f"Estimated Replication Capital: <b>${moat.get('estimated_replication_cost_usd', 0):,} USD</b>",
+            body_style
+        ))
+        story.append(Spacer(1, 6))
+
+    # 8. Investment Committee Diligence Memo & Flag Matrix
+    if "memo" in report_data:
+        memo = report_data["memo"]
+        story.append(Paragraph("8. Investment Committee (IC) Diligence Memo & Deal Recommendation", heading2_style))
+        deal_v = memo.get("deal_verdict", "CONDITIONAL_REMEDIATION_REQUIRED")
+        v_color = "#16A34A" if deal_v == "RECOMMENDED" else ("#D97706" if "CONDITIONAL" in deal_v else "#DC2626")
+        
+        story.append(Paragraph(
+            f"Deal Recommendation: <font color='{v_color}'><b>{deal_v}</b></font> | "
+            f"Diligence Risk Score: <b>{memo.get('diligence_risk_score', 0)} / 100</b> ({memo.get('risk_classification', 'MODERATE')} RISK)<br/>"
+            f"<b>Executive Verdict:</b> {memo.get('executive_verdict_summary', '')}",
+            body_style
+        ))
+        
+        # Flags summary
+        reds = memo.get("red_flags", [])
+        yellows = memo.get("yellow_flags", [])
+        greens = memo.get("green_flags", [])
+        
+        flag_summary_text = (
+            f"<b>Flag Audit:</b> <font color='#DC2626'><b>{len(reds)} Red Flags</b></font> | "
+            f"<font color='#D97706'><b>{len(yellows)} Yellow Flags</b></font> | "
+            f"<font color='#16A34A'><b>{len(greens)} Green Flags</b></font>"
+        )
+        story.append(Paragraph(flag_summary_text, body_style))
+        
+        if reds or yellows:
+            flag_rows = [
+                [
+                    Paragraph("<b>Flag Level</b>", body_style),
+                    Paragraph("<b>Category</b>", body_style),
+                    Paragraph("<b>Flag Finding & Operational Impact</b>", body_style)
+                ]
+            ]
+            for r in reds:
+                flag_rows.append([
+                    Paragraph("<font color='#DC2626'><b>RED FLAG</b></font>", body_style),
+                    Paragraph(r.get("category", ""), body_style),
+                    Paragraph(f"<b>{r.get('title', '')}</b><br/>{r.get('detail', '')}", body_style)
+                ])
+            for y in yellows[:4]:
+                flag_rows.append([
+                    Paragraph("<font color='#D97706'><b>YELLOW FLAG</b></font>", body_style),
+                    Paragraph(y.get("category", ""), body_style),
+                    Paragraph(f"<b>{y.get('title', '')}</b><br/>{y.get('detail', '')}", body_style)
+                ])
+            t_flags = Table(flag_rows, colWidths=[1.1*inch, 1.4*inch, 4.6*inch])
+            t_flags.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor('#F1F5F9')),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor('#CBD5E1')),
+                ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                ('TOPPADDING', (0,0), (-1,-1), 3),
+                ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+            ]))
+            story.append(t_flags)
+        story.append(Spacer(1, 6))
+
+    # 9. Data Coverage & Scope Limitations
+    story.append(Paragraph("9. Data Coverage & Technical Limitations", heading2_style))
     lim_data = [[Paragraph(f"• {lim}", limitation_style)] for lim in report_data.get("limitations", [])]
     t_lim = Table(lim_data, colWidths=[7.1*inch])
     t_lim.setStyle(TableStyle([
@@ -236,8 +365,8 @@ def generate_pdf_report(report_data: Dict[str, Any], output_path: str) -> str:
     story.append(t_lim)
     story.append(Spacer(1, 8))
     
-    # 7. Appendix: Evidence Audit Trail
-    story.append(Paragraph("7. Appendix: Auditable Evidence Graph", heading2_style))
+    # 10. Appendix: Evidence Audit Trail
+    story.append(Paragraph("10. Appendix: Auditable Evidence Graph", heading2_style))
     evd_table_data = [
         [
             Paragraph("<b>Code</b>", body_style),
@@ -264,7 +393,7 @@ def generate_pdf_report(report_data: Dict[str, Any], output_path: str) -> str:
     story.append(t_evd)
     story.append(Spacer(1, 8))
     
-    # 8. Cryptographic Chain-of-Custody Seal
+    # 11. Cryptographic Chain-of-Custody Seal
     if "audit_manifest" in report_data:
         m = report_data["audit_manifest"]
         seal = m.get("chain_of_custody_seal", {})

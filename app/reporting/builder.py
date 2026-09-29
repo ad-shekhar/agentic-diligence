@@ -11,6 +11,9 @@ from app.analysis.evaluation import analyze_evaluation_overhead
 from app.analysis.dependency import analyze_provider_dependencies
 from app.analysis.cascade import analyze_failure_cascades
 from app.analysis.tool_risk import analyze_tool_execution_risk
+from app.analysis.defensibility import analyze_defensibility_and_moat
+from app.analysis.stress_test import simulate_stress_test_economics
+from app.analysis.memo import generate_investment_committee_memo
 from app.aibom.generator import generate_native_aibom, export_cyclonedx_aibom
 from app.evidence.engine import generate_evidence_package
 from app.reporting.pdf import generate_pdf_report
@@ -29,8 +32,13 @@ def build_due_diligence_report(
     - Native AIBOM and CycloneDX-compatible export
     - Cascade failure & economic overrun analysis
     - Multi-dimensional Potential SPOF analysis
+    - Tool privilege & execution risk analysis
+    - Defensibility & moat score ("Wrapper vs Moat")
+    - What-If Stress-Testing & Fully-Loaded Labor Economics
+    - Investment Committee Executive Diligence Memo & Flag Matrix
     - Auditable Evidence Graph
     - Cryptographic Chain-of-Custody Manifest
+    - Verifiable Diligence Bundle (.ZIP)
     - PDF Report
     """
     company = db.query(Company).filter(Company.id == company_id).first()
@@ -48,6 +56,9 @@ def build_due_diligence_report(
     dependency = analyze_provider_dependencies(db, company_id)
     cascades = analyze_failure_cascades(db, company_id)
     tool_risk = analyze_tool_execution_risk(db, company_id)
+    defensibility = analyze_defensibility_and_moat(db, company_id)
+    stress_test = simulate_stress_test_economics(db, company_id)
+    memo = generate_investment_committee_memo(db, company_id)
     
     # 2. Native AIBOM & CycloneDX Export
     native_aibom_obj = generate_native_aibom(db, company_id)
@@ -126,6 +137,9 @@ def build_due_diligence_report(
         "dependencies": dependency,
         "cascades": cascades,
         "tool_risk": tool_risk,
+        "defensibility": defensibility,
+        "stress_test": stress_test,
+        "memo": memo,
         "aibom": native_aibom_dict,
         "limitations": dynamic_limitations,
         "evidence_records": evd_json,
@@ -180,6 +194,10 @@ def build_due_diligence_report(
     with open(aibom_cyclonedx_path, "w", encoding="utf-8") as f:
         json.dump(cyclonedx_aibom_dict, f, indent=2, default=str)
         
+    memo_path = os.path.join(output_dir, f"diligence_memo_{company_slug}.json")
+    with open(memo_path, "w", encoding="utf-8") as f:
+        json.dump(memo, f, indent=2, default=str)
+        
     bundle_zip_path = os.path.join(output_dir, f"diligence_package_{company_slug}.zip")
     
     report_data["package_files"] = {
@@ -188,6 +206,7 @@ def build_due_diligence_report(
         "audit_manifest": os.path.abspath(manifest_path),
         "aibom_native": os.path.abspath(aibom_native_path),
         "aibom_cyclonedx": os.path.abspath(aibom_cyclonedx_path),
+        "diligence_memo": os.path.abspath(memo_path),
         "diligence_bundle_zip": os.path.abspath(bundle_zip_path)
     }
     

@@ -55,6 +55,7 @@
         <div class="dropdown-menu" id="export-menu">
           <a href="#" id="dl-pdf" target="_blank">📄 Diligence Report (PDF)</a>
           <a href="#" id="dl-bundle" target="_blank">🔐 Verifiable Diligence Bundle (.ZIP)</a>
+          <a href="#" id="dl-memo" target="_blank">📑 IC Diligence Memo (JSON)</a>
           <a href="#" id="dl-json" target="_blank">📦 Diligence Package (JSON)</a>
           <a href="#" id="dl-aibom-native" target="_blank">📋 Native AIBOM (JSON)</a>
           <a href="#" id="dl-cyclonedx" target="_blank">🌐 CycloneDX 1.6 AIBOM</a>
@@ -116,6 +117,15 @@
       </button>
       <button class="tab-btn" data-tab="tab-compare">
         <span class="tab-num">7</span> Comparative Diligence
+      </button>
+      <button class="tab-btn" data-tab="tab-defensibility">
+        <span class="tab-num">8</span> Defensibility & Moat
+      </button>
+      <button class="tab-btn" data-tab="tab-stresstest">
+        <span class="tab-num">9</span> What-If Stress Testing
+      </button>
+      <button class="tab-btn" data-tab="tab-memo">
+        <span class="tab-num">10</span> IC Diligence Memo
       </button>
     </nav>
 
@@ -514,6 +524,261 @@
               </tr>
             </thead>
             <tbody id="compare-matrix-tbody"></tbody>
+          </table>
+    <!-- TAB 8: DEFENSIBILITY & MOAT AUDIT -->
+    <div class="tab-content" id="tab-defensibility">
+      <div class="section-hero-header">
+        <div>
+          <h2>AI Defensibility & Proprietary Moat Audit</h2>
+          <p class="section-desc">
+            Evaluates whether the target company possesses defensible proprietary scaffolding, fine-tuned weights, and domain integration assets—or is vulnerable as a thin commodity foundation model wrapper.
+          </p>
+        </div>
+        <div class="header-status-badge">
+          <span class="status-badge" id="moat-class-badge">PROPRIETARY COMPOUND SYSTEM</span>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Composite Moat Score</div>
+          <div class="kpi-value" id="kpi-moat-score" style="color: #58a6ff;">-- / 100</div>
+          <div class="kpi-sub" id="kpi-moat-class">Classification: --</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Scaffolding & Graph Depth</div>
+          <div class="kpi-value" id="kpi-scaffolding-score">-- / 25</div>
+          <div class="kpi-sub" id="kpi-spans-per-trace">-- spans / trace</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Model Sovereignty & Weights</div>
+          <div class="kpi-value" id="kpi-sovereignty-score">-- / 25</div>
+          <div class="kpi-sub" id="kpi-selfhosted-ratio">--% self-hosted/open</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Domain Tool & DB Connectors</div>
+          <div class="kpi-value" id="kpi-tool-score">-- / 25</div>
+          <div class="kpi-sub" id="kpi-connectors-count">-- enterprise connectors</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Estimated Cloning Barrier</div>
+          <div class="kpi-value" id="kpi-replication-months" style="color: #bc8cff;">-- mos</div>
+          <div class="kpi-sub" id="kpi-replication-cost">$0 Capital Est.</div>
+        </div>
+      </div>
+
+      <div class="panel-card" style="margin-top: 18px;">
+        <div class="panel-header">
+          <h3>Architectural Moat Assessment</h3>
+          <span class="counter-badge" id="moat-flywheel-sub">Data Flywheel: -- / 25</span>
+        </div>
+        <div class="narrative-callout" id="moat-narrative-box">
+          Analyzing target telemetry for proprietary scaffolding patterns...
+        </div>
+
+        <h4 style="margin-top: 18px; margin-bottom: 10px; font-size: 13px; color: #cbd5e1;">Defensibility Dimension Attributes</h4>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Audit Dimension</th>
+                <th>Observed Metric Value</th>
+                <th>Benchmark Threshold</th>
+                <th>Moat Implication</th>
+              </tr>
+            </thead>
+            <tbody id="moat-breakdown-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 9: WHAT-IF STRESS TESTING & LABOR ECONOMICS -->
+    <div class="tab-content" id="tab-stresstest">
+      <div class="section-hero-header">
+        <div>
+          <h2>What-If Operational & Economic Stress Simulator</h2>
+          <p class="section-desc">
+            Stress-test unit economics against token price inflation, foundation provider outages, volume growth, and fully-loaded human-in-the-loop operator labor expenses.
+          </p>
+        </div>
+      </div>
+
+      <!-- Interactive Controls Card -->
+      <div class="panel-card" style="margin-bottom: 20px;">
+        <div class="panel-header">
+          <h3>Sensitivity & Stress Parameters</h3>
+          <button id="btn-reset-stress" class="btn btn-outline" style="padding: 4px 10px; font-size: 11px;">Reset Defaults</button>
+        </div>
+        <div class="stress-controls-grid">
+          <div class="control-group">
+            <label for="slider-volume">Volume Scaling Multiple: <strong id="lbl-volume" style="color: #58a6ff;">1.0x</strong></label>
+            <input type="range" id="slider-volume" min="1.0" max="10.0" step="0.5" value="1.0">
+            <span class="control-hint">Simulate 50k to 500k monthly tasks</span>
+          </div>
+
+          <div class="control-group">
+            <label for="slider-price-shock">Provider Price Shift: <strong id="lbl-price-shock" style="color: #f59e0b;">0%</strong></label>
+            <input type="range" id="slider-price-shock" min="-40" max="100" step="5" value="0">
+            <span class="control-hint">Foundation model API pricing change</span>
+          </div>
+
+          <div class="control-group">
+            <label for="slider-labor-rate">Operator Wage ($/hr): <strong id="lbl-labor-rate" style="color: #ec4899;">$28/hr</strong></label>
+            <input type="range" id="slider-labor-rate" min="15" max="80" step="1" value="28">
+            <span class="control-hint">Fully-loaded human reviewer compensation</span>
+          </div>
+
+          <div class="control-group">
+            <label for="slider-customer-price">Customer Task Price: <strong id="lbl-customer-price" style="color: #10b981;">$0.050</strong></label>
+            <input type="range" id="slider-customer-price" min="0.01" max="0.30" step="0.005" value="0.05">
+            <span class="control-hint">Revenue charged to customer per resolved task</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stress KPI Comparison -->
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Stressed Gross Margin</div>
+          <div class="kpi-value" id="stress-gross-margin">--%</div>
+          <div class="kpi-sub" id="stress-base-margin">Baseline: --%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Fully-Loaded Unit Cost</div>
+          <div class="kpi-value" id="stress-unit-cost">$0.0000</div>
+          <div class="kpi-sub" id="stress-labor-cost">Labor: $0.0000 / task</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Monthly Total Spend</div>
+          <div class="kpi-value" id="stress-monthly-spend">$0</div>
+          <div class="kpi-sub" id="stress-monthly-tasks">0 tasks / month</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Price for 70% Margin</div>
+          <div class="kpi-value" id="stress-target-price" style="color: #10b981;">$0.0000</div>
+          <div class="kpi-sub">Target SaaS pricing required</div>
+        </div>
+      </div>
+
+      <!-- Verdict Banner -->
+      <div class="stress-verdict-card" id="stress-verdict-box" style="margin-top: 18px;">
+        <div class="verdict-header">
+          <span class="status-badge" id="stress-verdict-badge">STRESS STATUS</span>
+          <span id="stress-verdict-title" style="font-weight: 600;">Margin Health Assessment</span>
+        </div>
+        <p id="stress-verdict-detail" style="margin-top: 6px; font-size: 12px; color: #cbd5e1;"></p>
+      </div>
+
+      <!-- Sensitivity Matrices -->
+      <div class="two-col-grid" style="margin-top: 20px;">
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>Volume vs API Price Shock (Gross Margin %)</h3>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="matrix-volume-shock">
+              <thead>
+                <tr>
+                  <th>Volume Multiple</th>
+                  <th>-20% Price</th>
+                  <th>Base Price</th>
+                  <th>+25% Price</th>
+                  <th>+50% Price</th>
+                </tr>
+              </thead>
+              <tbody id="matrix-volume-shock-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel-card">
+          <div class="panel-header">
+            <h3>HIR vs Operator Wage (Gross Margin %)</h3>
+          </div>
+          <div class="table-container">
+            <table class="data-table" id="matrix-hir-wage">
+              <thead>
+                <tr>
+                  <th>HIR Rate</th>
+                  <th>$20/hr</th>
+                  <th>$30/hr</th>
+                  <th>$45/hr</th>
+                </tr>
+              </thead>
+              <tbody id="matrix-hir-wage-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 10: INVESTMENT COMMITTEE DILIGENCE MEMO -->
+    <div class="tab-content" id="tab-memo">
+      <div class="section-hero-header">
+        <div>
+          <h2>Investment Committee (IC) Technical Diligence Memo</h2>
+          <p class="section-desc">
+            Institutional investment memo synthesizing claim integrity, autonomous defensibility, unit economics, tool blast radius, and 100-day technical remediation roadmap.
+          </p>
+        </div>
+        <div class="header-status-badge">
+          <span class="status-badge status-verified" id="memo-deal-verdict-badge">RECOMMENDED</span>
+        </div>
+      </div>
+
+      <!-- Hero Verdict Card -->
+      <div class="memo-verdict-hero">
+        <div class="memo-score-dial">
+          <div class="memo-dial-number" id="memo-risk-score">--</div>
+          <div class="memo-dial-label">Diligence Risk Score</div>
+          <div class="memo-dial-class" id="memo-risk-class">MODERATE RISK</div>
+        </div>
+        <div class="memo-narrative-column">
+          <div class="memo-deal-label">Official Deal Recommendation</div>
+          <h3 id="memo-deal-title" style="color: #f1f5f9; margin-top: 4px;">Evaluating...</h3>
+          <p id="memo-deal-summary" style="margin-top: 8px; font-size: 13px; line-height: 1.5; color: #cbd5e1;"></p>
+        </div>
+      </div>
+
+      <!-- Flag Distribution Bar -->
+      <div class="flag-summary-strip">
+        <div class="flag-badge-pill flag-red">
+          <span class="flag-count" id="count-red-flags">0</span> Critical Red Flags
+        </div>
+        <div class="flag-badge-pill flag-yellow">
+          <span class="flag-count" id="count-yellow-flags">0</span> Operational Yellow Flags
+        </div>
+        <div class="flag-badge-pill flag-green">
+          <span class="flag-count" id="count-green-flags">0</span> Verified Strengths
+        </div>
+      </div>
+
+      <!-- Flags Breakdown -->
+      <div class="panel-card" style="margin-top: 20px;">
+        <div class="panel-header">
+          <h3>Flag Audit & Risk Register</h3>
+        </div>
+        <div class="flags-list" id="memo-flags-container"></div>
+      </div>
+
+      <!-- 100-Day Remediation Playbook -->
+      <div class="panel-card" style="margin-top: 20px;">
+        <div class="panel-header">
+          <h3>100-Day Technical Remediation Playbook</h3>
+          <span class="counter-badge">Pre-Close & Post-Close Milestones</span>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 140px;">Timeline Priority</th>
+                <th style="width: 220px;">Initiative</th>
+                <th>Engineering Action Plan</th>
+                <th style="width: 200px;">KPI Target</th>
+              </tr>
+            </thead>
+            <tbody id="memo-remediation-tbody"></tbody>
           </table>
         </div>
       </div>

@@ -977,3 +977,215 @@ body {
   justify-content: flex-end;
   gap: 10px;
 }
+
+/* ==========================================================================
+   TAB 8: DEFENSIBILITY & MOAT STYLING
+   ========================================================================== */
+.narrative-callout {
+  background: linear-gradient(135deg, rgba(22, 27, 34, 0.8) 0%, rgba(13, 17, 23, 0.95) 100%);
+  border: 1px solid var(--border-subtle);
+  border-left: 4px solid var(--accent-cyan);
+  border-radius: 6px;
+  padding: 14px 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: #E2E8F0;
+  margin-top: 10px;
+}
+
+/* ==========================================================================
+   TAB 9: WHAT-IF STRESS TESTING STYLING
+   ========================================================================== */
+.stress-controls-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.control-group {
+  background-color: var(--bg-card-sub);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.control-group label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #CBD5E1;
+  display: flex;
+  justify-content: space-between;
+}
+
+.control-group input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent-cyan);
+  cursor: pointer;
+}
+
+.control-hint {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.stress-verdict-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%);
+  border: 1px solid var(--border-prominent);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+.verdict-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ==========================================================================
+   TAB 10: INVESTMENT COMMITTEE MEMO STYLING
+   ========================================================================== */
+.memo-verdict-hero {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 24px;
+  background: linear-gradient(135deg, rgba(22, 27, 34, 0.9) 0%, rgba(13, 17, 23, 0.95) 100%);
+  border: 1px solid var(--border-prominent);
+  border-radius: 10px;
+  padding: 24px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.memo-score-dial {
+  text-align: center;
+  border-right: 1px solid var(--border-subtle);
+  padding-right: 20px;
+}
+
+.memo-dial-number {
+  font-size: 44px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--accent-cyan);
+  line-height: 1;
+}
+
+.memo-dial-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.memo-dial-class {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-top: 8px;
+  background-color: rgba(56, 189, 248, 0.15);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.memo-deal-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #94A3B8;
+}
+
+.flag-summary-strip {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.flag-badge-pill {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.flag-badge-pill .flag-count {
+  font-size: 18px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+}
+
+.flag-red {
+  background-color: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.3);
+  color: #F87171;
+}
+
+.flag-yellow {
+  background-color: rgba(217, 119, 6, 0.12);
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  color: #FBBF24;
+}
+
+.flag-green {
+  background-color: rgba(22, 163, 74, 0.12);
+  border: 1px solid rgba(22, 163, 74, 0.3);
+  color: #4ADE80;
+}
+
+.flags-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.flag-item-card {
+  padding: 12px 16px;
+  border-radius: 6px;
+  background-color: var(--bg-card-sub);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.flag-item-card.border-red {
+  border-left: 3px solid #DC2626;
+}
+
+.flag-item-card.border-yellow {
+  border-left: 3px solid #D97706;
+}
+
+.flag-item-card.border-green {
+  border-left: 3px solid #16A34A;
+}
+
+.flag-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.flag-item-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #F1F5F9;
+}
+
+.flag-item-detail {
+  font-size: 12px;
+  color: #94A3B8;
+  line-height: 1.4;
+}
+

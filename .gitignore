@@ -26,6 +26,9 @@ acme_ai_*.json
 .coverage
 htmlcov/
 
+# Binaries & Tools
+cloudflared.exe
+
 # IDE & OS
 .vscode/
 .idea/

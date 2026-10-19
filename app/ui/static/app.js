@@ -9,6 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupClaimFilters();
   setupDrawer();
   setupUploadModal();
+  setupDemoModal();
   setupComparison();
   setupStressSimulatorControls();
   
@@ -548,6 +549,44 @@ function setupUploadModal() {
       submitBtn.innerText = "Process & Verify Traces";
       submitBtn.disabled = false;
     }
+  });
+}
+
+// Setup Live Demo & Voiceover Modal
+function setupDemoModal() {
+  const modal = document.getElementById("demo-modal");
+  const openBtn = document.getElementById("btn-open-demo");
+  const closeBtn = document.getElementById("demo-modal-close");
+  const cancelBtn = document.getElementById("btn-close-demo-modal");
+  const videoPlayer = document.getElementById("demo-video-player");
+  const audioPlayer = document.getElementById("demo-audio-player");
+
+  if (!modal || !openBtn) return;
+
+  const openModal = () => {
+    modal.style.display = "flex";
+    if (videoPlayer) {
+      videoPlayer.currentTime = 0;
+      videoPlayer.play().catch(e => console.log(e));
+    }
+    if (audioPlayer) {
+      audioPlayer.currentTime = 0;
+      audioPlayer.play().catch(e => console.log(e));
+    }
+  };
+
+  const closeModal = () => {
+    modal.style.display = "none";
+    if (videoPlayer) videoPlayer.pause();
+    if (audioPlayer) audioPlayer.pause();
+  };
+
+  openBtn.addEventListener("click", openModal);
+  if (closeBtn) closeBtn.addEventListener("click", closeModal);
+  if (cancelBtn) cancelBtn.addEventListener("click", closeModal);
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) closeModal();
   });
 }
 

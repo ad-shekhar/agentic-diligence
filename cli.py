@@ -282,5 +282,142 @@ def serve(host, port, reload):
     click.echo(f"Starting Agentic Diligence Server on http://{host}:{port}...")
     uvicorn.run("app.main:app", host=host, port=port, reload=reload)
 
+
+# ---------------------------------------------------------------------------
+# Phase 3: Task Segmentation & Deterministic Metrics Engine
+# ---------------------------------------------------------------------------
+
+@cli.command()
+@click.option("--scenario", default="scenario_a",
+              help="Scenario preset (scenario_a to scenario_j)")
+@click.option("--sample-size", default=200,
+              help="Number of synthetic traces to segment")
+@click.option("--seed", default=42, help="Random seed")
+@click.option("--gap-ms", default=30000.0,
+              help="Gap heuristic threshold in milliseconds (default 30 000 ms = 30 s)")
+@click.option("--output-json", default=None,
+              help="Write full metrics JSON to this path")
+def compute_metrics(scenario, sample_size, seed, gap_ms, output_json):
+    """
+    Phase 3 — Runs task segmentation and computes all 8 epistemically-tagged
+    diligence signals (Autonomy Rate, HIR, TCR, Error Rate, Token Efficiency,
+    Cost Per Task, Model Concentration / HHI, Telemetry Coverage).
+
+    Absence of evidence is never silently assumed to be autonomy.
+    Unknown intervals widen the confidence interval; they are never collapsed.
+    """
+    from app.db.session import init_db, SessionLocal
+    from app.ingestion.synthetic import generate_synthetic_scenario
+    from app.db.models import Trace, Span
+    from app.ingestion.schema import NormalizedSpan as SchemaSpan
+    from app.epistemic.tags import TrustLevel
+    from app.analysis.task_segmentation import segment_trace
+    from app.analysis.metrics_engine import compute_diligence_metrics
+
+    click.echo("Initializing database...")
+    init_db()
+    db = SessionLocal()
+    try:
+        click.echo(f"Generating synthetic scenario '{scenario}' ({sample_size} traces, seed={seed})...")
+        synth_res = generate_synthetic_scenario(db, scenario_name=scenario.lower(),
+                                                sample_size=sample_size, seed=seed)
+        company_id = synth_res["company_id"]
+
+        click.echo("Loading spans from database and running task segmentation...")
+        traces = db.query(Trace).filter(Trace.company_id == company_id).all()
+
+        all_seg_results = []
+        all_norm_spans = []
+
+        for trace in traces:
+            norm_spans = []
+            for sp in trace.spans:
+                ns = SchemaSpan(
+                    span_id=sp.id,
+                    trace_id=trace.id,
+                    name=sp.name,
+                    span_kind=sp.span_kind,
+                    start_time=sp.start_time,
+                    end_time=sp.end_time,
+                    duration_ms=sp.duration_ms,
+                    status_code="OK",
+                    provider_name=sp.gen_ai_system,
+                    requested_model=sp.gen_ai_model,
+                    input_tokens=sp.gen_ai_prompt_tokens,
+                    output_tokens=sp.gen_ai_completion_tokens,
+                    has_token_data=(sp.gen_ai_prompt_tokens or 0) + (sp.gen_ai_completion_tokens or 0) > 0,
+                    tool_name=sp.tool_name,
+                    is_human_intervention=sp.is_human_intervention,
+                    human_action_type=sp.human_action_type,
+                    intervention_detection_method=(
+                        sp.detection_method.value if sp.detection_method else None
+                    ),
+                    cost_usd=sp.cost or 0.0,
+                    cost_status=sp.cost_status.value if sp.cost_status else "MEASURED",
+                    trust_level=TrustLevel.T1,
+                )
+                norm_spans.append(ns)
+                all_norm_spans.append(ns)
+
+            seg = segment_trace(norm_spans, trace_id=trace.id,
+                                workflow_name=trace.name, gap_heuristic_ms=gap_ms)
+            all_seg_results.append(seg)
+
+        click.echo("Computing 8 diligence signals...")
+        metrics = compute_diligence_metrics(all_seg_results, all_norm_spans)
+        d = metrics.to_dict()
+
+        ar = d["signals"]["autonomy_rate"]
+        hir = d["signals"]["human_intervention_rate"]
+        tcr = d["signals"]["task_completion_rate"]
+        er  = d["signals"]["error_rate"]
+        te  = d["signals"]["token_efficiency"]
+        cpt = d["signals"]["cost_per_task"]
+        mc  = d["signals"]["model_concentration"]
+        tc  = d["signals"]["telemetry_coverage"]
+
+        click.echo("\n=======================================================================")
+        click.echo(f"  AGENTIC DILIGENCE — PHASE 3 METRICS  [{scenario.upper()}]")
+        click.echo("=======================================================================")
+        click.echo(f"  Traces Analyzed   : {d['total_traces']}")
+        click.echo(f"  Total Tasks       : {d['total_tasks']}  (spans: {d['total_spans']})")
+        click.echo(f"  Total Cost        : ${d['total_cost_usd']:.4f} USD")
+        click.echo("-----------------------------------------------------------------------")
+        _print_signal("1. Autonomy Rate (AR)",        ar,  "%")
+        _print_signal("2. Human Intervention Rate",   hir, "%")
+        _print_signal("3. Task Completion Rate",      tcr, "%")
+        _print_signal("4. Error Rate",                er,  "%")
+        _print_signal("5. Token Efficiency (TE)",     te,  "")
+        _print_signal("6. Cost Per Task (CPT)",       cpt, "USD")
+        _print_signal("7. Model Concentration (HHI)", mc,  "")
+        _print_signal("8. Telemetry Coverage",        tc,  "%")
+        click.echo("=======================================================================\n")
+
+        if output_json:
+            with open(output_json, "w") as f:
+                import json
+                json.dump(d, f, indent=2, default=str)
+            click.echo(f"Full metrics JSON written to: {output_json}")
+    finally:
+        db.close()
+
+
+def _print_signal(label: str, sig: dict, unit: str):
+    """Helper to pretty-print a single diligence signal."""
+    val = sig.get("value")
+    tag = sig.get("epistemic_tag", "?")
+    trust = sig.get("trust_level", "?")
+    bounds = sig.get("bounds") or {}
+    lo  = bounds.get("lower", "?")
+    hi  = bounds.get("upper", "?")
+    n   = sig.get("sample_size", 0)
+    if val is not None:
+        val_str = f"{val:.2f} {unit}  [bounds: {lo:.1f}–{hi:.1f}]" if isinstance(val, float) else f"{val} {unit}"
+    else:
+        val_str = "UNKNOWN"
+    click.echo(f"  {label:<35} {val_str:<30} {tag} / {trust}  (n={n})")
+
+
 if __name__ == "__main__":
     cli()
+

@@ -301,3 +301,165 @@ def compare_scenarios_endpoint(
         return compare_diligence_targets(db, target_a_res["company_id"], target_b_res["company_id"])
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---------------------------------------------------------------------------
+# Phase 3: Task Segmentation & Deterministic Metrics Engine
+# ---------------------------------------------------------------------------
+
+@router.post("/traces/segment")
+def segment_trace_endpoint(
+    payload: Dict[str, Any] = Body(...),
+):
+    """
+    Segments a list of normalized spans from a single trace into discrete tasks,
+    classifying each as AUTONOMOUS / HUMAN_EXPLICIT / HUMAN_INFERRED / UNKNOWN.
+    Returns epistemically-tagged autonomy bounds.
+
+    Request body:
+    {
+        "trace_id": "abc123",
+        "workflow_name": "my_agent_workflow",
+        "gap_heuristic_ms": 30000,          # optional, default 30s
+        "spans": [ ... NormalizedSpan dicts ... ]
+    }
+    """
+    from app.analysis.task_segmentation import segment_trace
+    from app.ingestion.normalizer import normalize_span_payload
+
+    try:
+        trace_id = payload.get("trace_id", "unspecified_trace")
+        workflow_name = payload.get("workflow_name", "unknown_workflow")
+        gap_ms = float(payload.get("gap_heuristic_ms", 30_000))
+        raw_spans = payload.get("spans", [])
+
+        normalized = [normalize_span_payload(s) for s in raw_spans]
+        result = segment_trace(normalized, trace_id=trace_id,
+                               workflow_name=workflow_name, gap_heuristic_ms=gap_ms)
+        return result.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/traces/metrics")
+def compute_metrics_endpoint(
+    payload: Dict[str, Any] = Body(...),
+):
+    """
+    Computes all 8 epistemically-tagged diligence signals from a list of
+    pre-segmented traces and their spans.
+
+    Request body:
+    {
+        "traces": [ ...TraceSegmentationResult.to_dict() outputs... ],
+        "spans":  [ ...NormalizedSpan dicts... ]
+    }
+    """
+    from app.analysis.task_segmentation import (
+        segment_trace, SegmentedTask, TraceSegmentationResult,
+        TaskOutcome, InterventionKind
+    )
+    from app.analysis.metrics_engine import compute_diligence_metrics
+    from app.ingestion.normalizer import normalize_span_payload
+    from app.epistemic.tags import TrustLevel, EpistemicTag
+
+    try:
+        raw_spans = payload.get("spans", [])
+        normalized_spans = [normalize_span_payload(s) for s in raw_spans]
+
+        # If segmentation results are provided, use them directly
+        # Otherwise, group spans by trace_id and segment each
+        all_results = []
+        spans_by_trace: Dict[str, list] = {}
+        for s in normalized_spans:
+            spans_by_trace.setdefault(s.trace_id, []).append(s)
+
+        for tid, t_spans in spans_by_trace.items():
+            r = segment_trace(t_spans, trace_id=tid)
+            all_results.append(r)
+
+        metrics = compute_diligence_metrics(all_results, normalized_spans)
+        return metrics.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/companies/{company_id}/metrics")
+def get_company_metrics(
+    company_id: str,
+    gap_heuristic_ms: float = 30_000,
+    db: Session = Depends(get_db),
+):
+    """
+    Computes Phase 3 task-segmented diligence metrics for a company
+    whose traces are already stored in the database.
+
+    Returns all 8 epistemically-tagged diligence signals.
+    """
+    from app.analysis.task_segmentation import segment_trace
+    from app.analysis.metrics_engine import compute_diligence_metrics
+    from app.ingestion.schema import NormalizedSpan as SchemaSpan
+    from app.ingestion.normalizer import normalize_span_payload
+    from app.epistemic.tags import TrustLevel
+    from app.db.models import Trace, Span
+    from datetime import datetime
+
+    try:
+        traces = db.query(Trace).filter(Trace.company_id == company_id).all()
+        if not traces:
+            raise HTTPException(status_code=404, detail=f"No traces found for company {company_id}")
+
+        all_seg_results = []
+        all_norm_spans = []
+
+        for trace in traces:
+            # Convert DB Span rows → NormalizedSpan
+            norm_spans = []
+            for sp in trace.spans:
+                ns = SchemaSpan(
+                    span_id=sp.id,
+                    trace_id=trace.id,
+                    name=sp.name,
+                    span_kind=sp.span_kind,
+                    start_time=sp.start_time,
+                    end_time=sp.end_time,
+                    duration_ms=sp.duration_ms,
+                    status_code="OK",
+                    provider_name=sp.gen_ai_system,
+                    requested_model=sp.gen_ai_model,
+                    input_tokens=sp.gen_ai_prompt_tokens,
+                    output_tokens=sp.gen_ai_completion_tokens,
+                    has_token_data=(sp.gen_ai_prompt_tokens or 0) + (sp.gen_ai_completion_tokens or 0) > 0,
+                    tool_name=sp.tool_name,
+                    is_human_intervention=sp.is_human_intervention,
+                    human_action_type=sp.human_action_type,
+                    intervention_detection_method=(
+                        sp.detection_method.value if sp.detection_method else None
+                    ),
+                    cost_usd=sp.cost or 0.0,
+                    cost_status=sp.cost_status.value if sp.cost_status else "MEASURED",
+                    trust_level=TrustLevel.T1,
+                )
+                norm_spans.append(ns)
+                all_norm_spans.append(ns)
+
+            seg = segment_trace(
+                norm_spans,
+                trace_id=trace.id,
+                workflow_name=trace.name,
+                gap_heuristic_ms=gap_heuristic_ms,
+            )
+            all_seg_results.append(seg)
+
+        metrics = compute_diligence_metrics(all_seg_results, all_norm_spans)
+        return {
+            "company_id": company_id,
+            "traces_analyzed": len(traces),
+            "gap_heuristic_ms": gap_heuristic_ms,
+            **metrics.to_dict(),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

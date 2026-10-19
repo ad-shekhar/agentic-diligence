@@ -1,0 +1,112 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": { "stringValue": "claude-desktop-mcp-client" }
+          },
+          {
+            "key": "mcp.protocol_version",
+            "value": { "stringValue": "2024-11-05" }
+          }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {
+            "name": "agd.mcp.observer",
+            "version": "1.0.0"
+          },
+          "spans": [
+            {
+              "traceId": "9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a",
+              "spanId": "1234567890abcdef",
+              "parentSpanId": "",
+              "name": "mcp.tool_call.read_file",
+              "kind": 3,
+              "startTimeUnixNano": "1726999300000000000",
+              "endTimeUnixNano": "1726999300250000000",
+              "attributes": [
+                {
+                  "key": "gen_ai.provider.name",
+                  "value": { "stringValue": "anthropic" }
+                },
+                {
+                  "key": "gen_ai.request.model",
+                  "value": { "stringValue": "claude-3-5-sonnet-20241022" }
+                },
+                {
+                  "key": "gen_ai.tool.name",
+                  "value": { "stringValue": "read_file" }
+                },
+                {
+                  "key": "gen_ai.tool.call_id",
+                  "value": { "stringValue": "call_mcp_fs_01" }
+                },
+                {
+                  "key": "gen_ai.tool.status",
+                  "value": { "stringValue": "success" }
+                },
+                {
+                  "key": "gen_ai.operation.name",
+                  "value": { "stringValue": "execute_tool" }
+                },
+                {
+                  "key": "mcp.method",
+                  "value": { "stringValue": "tools/call" }
+                },
+                {
+                  "key": "mcp.server.name",
+                  "value": { "stringValue": "filesystem_server" }
+                }
+              ],
+              "status": {
+                "code": 1
+              }
+            },
+            {
+              "traceId": "9d8e7f6a5b4c3d2e1f0a9b8c7d6e5f4a",
+              "spanId": "fedcba0987654321",
+              "parentSpanId": "1234567890abcdef",
+              "name": "anthropic.messages.create",
+              "kind": 3,
+              "startTimeUnixNano": "1726999300300000000",
+              "endTimeUnixNano": "1726999301900000000",
+              "attributes": [
+                {
+                  "key": "gen_ai.provider.name",
+                  "value": { "stringValue": "anthropic" }
+                },
+                {
+                  "key": "gen_ai.request.model",
+                  "value": { "stringValue": "claude-3-5-sonnet-20241022" }
+                },
+                {
+                  "key": "gen_ai.response.model",
+                  "value": { "stringValue": "claude-3-5-sonnet-20241022" }
+                },
+                {
+                  "key": "gen_ai.usage.input_tokens",
+                  "value": { "intValue": 1420 }
+                },
+                {
+                  "key": "gen_ai.usage.output_tokens",
+                  "value": { "intValue": 380 }
+                },
+                {
+                  "key": "gen_ai.operation.name",
+                  "value": { "stringValue": "chat" }
+                }
+              ],
+              "status": {
+                "code": 1
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

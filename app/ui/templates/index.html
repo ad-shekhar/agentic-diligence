@@ -44,6 +44,10 @@
         <button id="btn-run-scenario" class="btn btn-secondary">Run Audit</button>
       </div>
 
+      <button id="btn-open-demo" class="btn btn-primary" style="background: linear-gradient(135deg, #2563eb, #7c3aed); border: none; font-weight: 600; box-shadow: 0 0 15px rgba(124, 58, 237, 0.4);">
+        <span class="btn-icon">▶</span> Watch Live Demo & Audio Tour
+      </button>
+
       <button id="btn-open-upload" class="btn btn-outline">
         <span class="btn-icon">↑</span> Upload AI Logs <span class="badge-experimental">Custom</span>
       </button>
@@ -960,6 +964,72 @@
       <div class="modal-footer">
         <button class="btn btn-secondary" id="btn-cancel-upload">Cancel</button>
         <button class="btn btn-primary" id="btn-submit-upload" disabled>Process & Verify Traces</button>
+      </div>
+    </div>
+  <!-- Demo Video & Audio Tour Modal -->
+  <div class="modal-backdrop" id="demo-modal" style="display: none; position: fixed; inset: 0; background: rgba(5, 8, 15, 0.88); backdrop-filter: blur(10px); z-index: 9999; justify-content: center; align-items: center;">
+    <div class="modal-card" style="width: 1100px; max-width: 95vw; max-height: 92vh; background: #0d1117; border: 1px solid #30363d; border-radius: 12px; display: flex; flex-direction: column; box-shadow: 0 25px 60px rgba(0,0,0,0.8); overflow: hidden;">
+      <div class="modal-header" style="padding: 16px 24px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; background: #161b22;">
+        <div>
+          <h3 style="margin: 0; font-size: 1.25rem; color: #f0f6fc; display: flex; align-items: center; gap: 8px;">
+            <span style="color: #388bfd;">▶</span> Platform Demo: Live Audit Walkthrough & Audio Tour
+          </h3>
+          <p style="margin: 4px 0 0 0; font-size: 0.85rem; color: #8b949e;">
+            Watch the automated due diligence engines verify runtime telemetry, pitch claims, and IP defensibility.
+          </p>
+        </div>
+        <button class="modal-close" id="demo-modal-close" style="background: transparent; border: none; font-size: 24px; color: #8b949e; cursor: pointer;">&times;</button>
+      </div>
+
+      <div class="modal-body" style="padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+        <!-- Video Player Section -->
+        <div style="background: #000; border-radius: 8px; overflow: hidden; border: 1px solid #30363d; position: relative;">
+          <video id="demo-video-player" controls autoplay loop style="width: 100%; max-height: 480px; display: block; object-fit: contain;">
+            <source src="/static/agentic_diligence_demo.mp4" type="video/mp4">
+            Your browser does not support the video tag.
+          </video>
+        </div>
+
+        <!-- Audio Voiceover Bar -->
+        <div style="background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; gap: 16px;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 1.5rem;">🎙️</span>
+            <div>
+              <div style="font-weight: 600; color: #f0f6fc; font-size: 0.95rem;">Studio Audio Voiceover (Concept Narration)</div>
+              <div style="font-size: 0.8rem; color: #8b949e;">Narrator: Microsoft Zira (Tech Diligence Specialist) • 4m 07s</div>
+            </div>
+          </div>
+          <audio id="demo-audio-player" controls style="height: 38px; min-width: 320px;">
+            <source src="/static/agentic_diligence_voiceover.wav" type="audio/wav">
+          </audio>
+        </div>
+
+        <!-- Concept Chapter Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; font-size: 0.82rem;">
+          <div style="background: #161b22; padding: 10px 14px; border-radius: 6px; border-left: 3px solid #ef4444;">
+            <strong style="color: #f85149;">Engine 1: Claims Verifier</strong>
+            <div style="color: #8b949e; margin-top: 3px;">Tests 95% claims against reality. Catches 24.4% Human Intervention Rate.</div>
+          </div>
+          <div style="background: #161b22; padding: 10px 14px; border-radius: 6px; border-left: 3px solid #f59e0b;">
+            <strong style="color: #d29922;">Engine 5: AIBOM & SPOF</strong>
+            <div style="color: #8b949e; margin-top: 3px;">CycloneDX 1.6 itemization flags 98% vendor lock-in without failover.</div>
+          </div>
+          <div style="background: #161b22; padding: 10px 14px; border-radius: 6px; border-left: 3px solid #ef4444;">
+            <strong style="color: #f85149;">Engine 4: Cascades</strong>
+            <div style="color: #8b949e; margin-top: 3px;">2.19x cost multiplier & latency spikes when tools trigger retry loops.</div>
+          </div>
+          <div style="background: #161b22; padding: 10px 14px; border-radius: 6px; border-left: 3px solid #238636;">
+            <strong style="color: #3fb950;">Engine 9: Defensibility</strong>
+            <div style="color: #8b949e; margin-top: 3px;">Moat Score 70.3/100. Cloning barrier: 10 months and $420,000.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer" style="padding: 12px 24px; border-top: 1px solid #30363d; background: #161b22; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 0.82rem; color: #8b949e;">
+          Need raw files? <a href="/static/agentic_diligence_demo.mp4" download style="color: #58a6ff; text-decoration: none;">Download MP4 Video</a> | <a href="/static/agentic_diligence_voiceover.wav" download style="color: #58a6ff; text-decoration: none;">Download WAV Audio</a>
+        </div>
+        <button class="btn btn-secondary" id="btn-close-demo-modal">Close Tour</button>
       </div>
     </div>
   </div>

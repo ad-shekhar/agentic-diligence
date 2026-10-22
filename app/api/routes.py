@@ -424,7 +424,8 @@ def get_company_metrics(
                     start_time=sp.start_time,
                     end_time=sp.end_time,
                     duration_ms=sp.duration_ms,
-                    status_code="OK",
+                    # Derive status_code from actual DB error flag (was incorrectly hardcoded to "OK")
+                    status_code="ERROR" if sp.is_error else "OK",
                     provider_name=sp.gen_ai_system,
                     requested_model=sp.gen_ai_model,
                     input_tokens=sp.gen_ai_prompt_tokens,

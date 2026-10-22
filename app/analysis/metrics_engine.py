@@ -341,13 +341,26 @@ def _min_trust_spans(spans: Sequence[NormalizedSpan]) -> TrustLevel:
 
 
 def _task_is_completed(task: SegmentedTask, all_spans: Sequence[NormalizedSpan]) -> bool:
-    """Returns True if any span in the task has status_code == 'OK'."""
+    """
+    Returns True only if at least one span belonging to this task has status_code == 'OK'.
+
+    Epistemic note: If no matching spans are found in the provided span set (e.g., when spans
+    are loaded from DB separately from segmentation), we return False rather than assuming
+    completion. Absence of observed completion evidence is not evidence of completion.
+    """
     span_set = set(task.span_ids)
+    if not span_set:
+        # UNKNOWN gap tasks have no span_ids — never mark as completed
+        return False
+    matched_any = False
     for s in all_spans:
-        if s.span_id in span_set and s.status_code == "OK":
-            return True
-    # If no spans matched, we rely on the task not having ERROR outcome
-    return task.outcome in (TaskOutcome.AUTONOMOUS, TaskOutcome.HUMAN_EXPLICIT, TaskOutcome.HUMAN_INFERRED)
+        if s.span_id in span_set:
+            matched_any = True
+            if s.status_code == "OK":
+                return True
+    # If we found matching spans but none were OK, task is not completed
+    # If we found no matching spans at all, we cannot assert completion
+    return False
 
 
 def _compute_token_efficiency(

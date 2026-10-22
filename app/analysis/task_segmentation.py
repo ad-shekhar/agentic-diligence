@@ -194,15 +194,49 @@ def segment_trace(
             notes=["No instrumented spans provided — trace may be entirely uninstrumented."],
         )
 
-    # Sort spans chronologically
-    sorted_spans = sorted(spans, key=lambda s: s.start_time)
+    # Filter out epoch-sentinel spans (1970-01-01T00:00:00) — these indicate missing timestamps,
+    # not genuine observations. Including them would generate false 50-year gaps against real spans.
+    _EPOCH_SENTINEL = datetime(1970, 1, 1, 0, 0, 0)
+    epoch_spans = [s for s in spans if s.start_time == _EPOCH_SENTINEL]
+    real_spans = [s for s in spans if s.start_time != _EPOCH_SENTINEL]
+
+    sentinel_notes: list = []
+    if epoch_spans:
+        sentinel_notes.append(
+            f"{len(epoch_spans)} span(s) had missing timestamps (epoch sentinel 1970-01-01) "
+            "and were excluded from gap analysis to prevent spurious UNKNOWN classification. "
+            "These spans are counted in total span metrics but not task segmentation."
+        )
+
+    if not real_spans:
+        # All spans had missing timestamps; cannot segment
+        bounds, unknown_frac = compute_autonomy_bounds(0, 0, 0, 0)
+        return TraceSegmentationResult(
+            trace_id=trace_id,
+            workflow_name=workflow_name,
+            total_tasks=0,
+            tasks=[],
+            autonomy=EpistemicValue(
+                value=None,
+                tag=EpistemicTag.UNKNOWN,
+                trust_level=TrustLevel.T1,
+                bounds=bounds,
+                sample_size=0,
+                unknown_fraction=unknown_frac,
+                notes="All spans had missing timestamps (epoch sentinel); autonomy is entirely unknown.",
+            ),
+            notes=sentinel_notes or ["All spans had missing timestamps; cannot segment."],
+        )
+
+    # Sort real spans chronologically
+    sorted_spans = sorted(real_spans, key=lambda s: s.start_time)
 
     # Determine minimum trust level across all spans
     trust_ranks = {TrustLevel.T0: 0, TrustLevel.T1: 1, TrustLevel.T2: 2, TrustLevel.T3: 3}
     min_trust = min(sorted_spans, key=lambda s: trust_ranks.get(s.trust_level, 1)).trust_level
 
     tasks: List[SegmentedTask] = []
-    notes: List[str] = []
+    notes: List[str] = list(sentinel_notes)  # Carry forward any epoch-sentinel warnings
 
     # --- Step 1: Cluster spans into contiguous task windows ---
     clusters: List[List[NormalizedSpan]] = []

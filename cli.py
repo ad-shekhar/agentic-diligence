@@ -418,6 +418,155 @@ def _print_signal(label: str, sig: dict, unit: str):
     click.echo(f"  {label:<35} {val_str:<30} {tag} / {trust}  (n={n})")
 
 
+# --- Phase 4 CLI Commands ---
+
+@cli.command("claim-matrix")
+@click.option("--company", required=True, help="Target company ID")
+@click.option("--output", default=None, help="Output JSON path")
+def cmd_claim_matrix(company, output):
+    """Generates and displays the formal Phase 4 Claim Verification Matrix."""
+    init_db()
+    db = SessionLocal()
+    try:
+        from app.reporting.service import assemble_canonical_diligence_report_package
+        _, _, matrix = assemble_canonical_diligence_report_package(db, company)
+        d = matrix.to_dict()
+        click.echo("\n=======================================================================")
+        click.echo(f"  AGENTIC DILIGENCE — CLAIM VERIFICATION MATRIX [{company.upper()}]")
+        click.echo("=======================================================================")
+        click.echo(f"  Matrix ID       : {d['matrix_id']}")
+        click.echo(f"  Total Claims    : {d['summary']['total_claims']}")
+        click.echo(f"  Verified        : {d['summary']['verified_count']}")
+        click.echo(f"  Partially Verif : {d['summary']['partially_verified_count']}")
+        click.echo(f"  Contradicted    : {d['summary']['contradicted_count']}")
+        click.echo(f"  Insufficient Ev : {d['summary']['insufficient_evidence_count']}")
+        click.echo("-----------------------------------------------------------------------")
+        for e in d["entries"]:
+            click.echo(f"  [{e['verification_verdict']:<21}] {e['claim_id']}: {e['verbatim_claim_text']}")
+            click.echo(f"    Reason: {e['verdict_reason']}")
+        click.echo("=======================================================================\n")
+        if output:
+            with open(output, "w", encoding="utf-8") as f:
+                json.dump(d, f, indent=2)
+            click.echo(f"Saved Claim Matrix to: {output}")
+    finally:
+        db.close()
+
+
+@cli.command("report")
+@click.option("--company", required=True, help="Target company ID")
+@click.option("--format", "report_format", type=click.Choice(["json", "markdown"]), default="markdown", help="Report format (markdown or json)")
+@click.option("--output", default=None, help="Output file path")
+@click.option("--synthetic/--no-synthetic", default=False, help="Flag dataset as synthetic benchmark demonstration")
+def cmd_report(company, report_format, output, synthetic):
+    """Generates a canonical diligence report in Markdown or JSON format."""
+    init_db()
+    db = SessionLocal()
+    try:
+        from app.reporting.service import assemble_canonical_diligence_report_package
+        rep_json, rep_md, _ = assemble_canonical_diligence_report_package(db, company, is_synthetic=synthetic)
+        content = rep_md if report_format == "markdown" else json.dumps(rep_json, indent=2)
+        if output:
+            with open(output, "w", encoding="utf-8") as f:
+                f.write(content)
+            click.echo(f"Diligence report ({report_format}) written to: {output}")
+        else:
+            click.echo(content)
+    finally:
+        db.close()
+
+
+@cli.group("bundle")
+def bundle_group():
+    """Manage and verify cryptographic evidence bundles."""
+    pass
+
+
+@bundle_group.command("create")
+@click.option("--company", required=True, help="Target company ID")
+@click.option("--output-dir", required=True, help="Directory to save the evidence bundle")
+@click.option("--synthetic/--no-synthetic", default=False, help="Flag dataset as synthetic benchmark")
+def cmd_bundle_create(company, output_dir, synthetic):
+    """Compiles all diligence artifacts and generates manifest.json."""
+    init_db()
+    db = SessionLocal()
+    try:
+        from app.reporting.service import compile_diligence_bundle_on_disk
+        click.echo(f"Compiling diligence bundle for company '{company}' in '{output_dir}'...")
+        res = compile_diligence_bundle_on_disk(db, company, output_dir, is_synthetic=synthetic)
+        click.echo("\n=======================================================================")
+        click.echo(f"  EVIDENCE BUNDLE COMPILED SUCCESSFULLY")
+        click.echo("=======================================================================")
+        click.echo(f"  Bundle ID     : {res['bundle_id']}")
+        click.echo(f"  Manifest Path : {res['manifest_path']}")
+        click.echo(f"  Artifacts     : {res['artifacts_compiled']} files anchored")
+        click.echo("=======================================================================\n")
+    finally:
+        db.close()
+
+
+@bundle_group.command("verify")
+@click.option("--dir", "bundle_dir", required=True, help="Path to evidence bundle directory")
+def cmd_bundle_verify(bundle_dir):
+    """Cryptographically verifies an evidence bundle against its manifest.json."""
+    from app.reporting.manifest import verify_bundle_integrity
+    click.echo(f"Verifying evidence bundle at: {bundle_dir}...")
+    res = verify_bundle_integrity(bundle_dir)
+    d = res.to_dict()
+    click.echo("\n=======================================================================")
+    click.echo(f"  BUNDLE INTEGRITY VERIFICATION RESULT: [{d['status']}]")
+    click.echo("=======================================================================")
+    click.echo(f"  Status        : {d['status']}")
+    click.echo(f"  Is Valid      : {d['is_valid']}")
+    click.echo(f"  Declared Files: {d['total_files_declared']}")
+    click.echo(f"  Verified Files: {d['files_verified']}")
+    if d["missing_files"]:
+        click.echo(f"  Missing Files : {d['missing_files']}")
+    if d["altered_files"]:
+        click.echo(f"  Altered Files : {d['altered_files']}")
+    if d["untracked_files"]:
+        click.echo(f"  Untracked     : {d['untracked_files']}")
+    if d["error_message"]:
+        click.echo(f"  Error Message : {d['error_message']}")
+    click.echo("=======================================================================\n")
+
+
+@cli.command("aibom")
+@click.option("--company", required=True, help="Target company ID")
+@click.option("--spec-version", type=click.Choice(["1.5", "1.6"]), default="1.6", help="CycloneDX specVersion")
+@click.option("--validate/--no-validate", default=True, help="Validate against official OWASP JSON schema")
+@click.option("--output", default=None, help="Output JSON path")
+def cmd_aibom(company, spec_version, validate, output):
+    """Exports CycloneDX AI-BOM and validates against official schema."""
+    init_db()
+    db = SessionLocal()
+    try:
+        from app.aibom.generator import generate_native_aibom, export_cyclonedx_aibom, validate_cyclonedx_schema
+        native = generate_native_aibom(db, company)
+        cdx = export_cyclonedx_aibom(native, spec_version=spec_version)
+        validation_status = "NOT_CHECKED"
+        if validate:
+            is_valid, errors = validate_cyclonedx_schema(cdx, spec_version=spec_version)
+            validation_status = "PASSED" if is_valid else f"FAILED: {'; '.join(errors)}"
+
+        click.echo("\n=======================================================================")
+        click.echo(f"  CYCLONEDX AI-BOM EXPORT [{company.upper()}]")
+        click.echo("=======================================================================")
+        click.echo(f"  Spec Version     : {spec_version}")
+        click.echo(f"  Components       : {len(cdx.get('components', []))}")
+        click.echo(f"  Schema Validation: {validation_status}")
+        click.echo("=======================================================================\n")
+
+        if output:
+            with open(output, "w", encoding="utf-8") as f:
+                json.dump(cdx, f, indent=2)
+            click.echo(f"Saved AI-BOM to: {output}")
+        else:
+            click.echo(json.dumps(cdx, indent=2))
+    finally:
+        db.close()
+
+
 if __name__ == "__main__":
     cli()
 

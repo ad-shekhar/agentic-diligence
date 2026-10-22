@@ -285,3 +285,24 @@ class Report(Base):
     created_at = Column(DateTime, default=utc_now)
     
     company = relationship("Company", back_populates="reports")
+
+class PayloadProvenance(Base):
+    """
+    Immutable cryptographic provenance record for every ingested OTLP payload.
+    Calculates SHA-256 digest of exact raw request bytes before transformation.
+    """
+    __tablename__ = "payload_provenance"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    payload_hash = Column(String(64), nullable=False, index=True)
+    company_id = Column(String(36), nullable=True, index=True)
+    content_type = Column(String(100), nullable=False, default="application/json")
+    byte_size = Column(Integer, nullable=False, default=0)
+    format = Column(String(50), nullable=False, default="otlp_http_json")
+    normalization_version = Column(String(50), nullable=False, default="v1.28.0")
+    trace_count = Column(Integer, default=0)
+    span_count = Column(Integer, default=0)
+    status = Column(String(50), nullable=False, default="SUCCESS") # SUCCESS, PARTIAL, FAILED
+    error_message = Column(Text, nullable=True)
+    received_at = Column(DateTime, default=utc_now)
+

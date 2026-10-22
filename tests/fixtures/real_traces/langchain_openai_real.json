@@ -1,0 +1,156 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {
+        "attributes": [
+          {
+            "key": "service.name",
+            "value": { "stringValue": "customer-support-langgraph-agent" }
+          },
+          {
+            "key": "telemetry.sdk.language",
+            "value": { "stringValue": "python" }
+          },
+          {
+            "key": "telemetry.sdk.name",
+            "value": { "stringValue": "opentelemetry" }
+          },
+          {
+            "key": "telemetry.sdk.version",
+            "value": { "stringValue": "1.24.0" }
+          }
+        ]
+      },
+      "scopeSpans": [
+        {
+          "scope": {
+            "name": "langchain.opentelemetry",
+            "version": "0.1.14"
+          },
+          "spans": [
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "00f067aa0ba902b7",
+              "parentSpanId": "",
+              "name": "LangGraph_SupportOrchestrator",
+              "kind": 1,
+              "startTimeUnixNano": "1726999200000000000",
+              "endTimeUnixNano": "1726999203500000000",
+              "attributes": [
+                {
+                  "key": "langchain.workflow.name",
+                  "value": { "stringValue": "ticket_resolution" }
+                },
+                {
+                  "key": "langchain.run_id",
+                  "value": { "stringValue": "run-4892a01b-c1" }
+                }
+              ],
+              "status": {
+                "code": 1
+              }
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "5fb397be34d23b0f",
+              "parentSpanId": "00f067aa0ba902b7",
+              "name": "ChatOpenAI.generate",
+              "kind": 3,
+              "startTimeUnixNano": "1726999200100000000",
+              "endTimeUnixNano": "1726999201800000000",
+              "attributes": [
+                {
+                  "key": "gen_ai.system",
+                  "value": { "stringValue": "openai" }
+                },
+                {
+                  "key": "gen_ai.request.model",
+                  "value": { "stringValue": "gpt-4o" }
+                },
+                {
+                  "key": "gen_ai.response.model",
+                  "value": { "stringValue": "gpt-4o-2024-08-06" }
+                },
+                {
+                  "key": "gen_ai.operation.name",
+                  "value": { "stringValue": "chat" }
+                },
+                {
+                  "key": "gen_ai.usage.prompt_tokens",
+                  "value": { "intValue": 540 }
+                },
+                {
+                  "key": "gen_ai.usage.completion_tokens",
+                  "value": { "intValue": 135 }
+                }
+              ],
+              "status": {
+                "code": 1
+              }
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "321b8f10ea89bc72",
+              "parentSpanId": "00f067aa0ba902b7",
+              "name": "Tool:postgres_order_lookup",
+              "kind": 3,
+              "startTimeUnixNano": "1726999201850000000",
+              "endTimeUnixNano": "1726999202250000000",
+              "attributes": [
+                {
+                  "key": "gen_ai.tool.name",
+                  "value": { "stringValue": "postgres_order_lookup" }
+                },
+                {
+                  "key": "gen_ai.tool.call_id",
+                  "value": { "stringValue": "call_db_99182" }
+                },
+                {
+                  "key": "gen_ai.tool.status",
+                  "value": { "stringValue": "success" }
+                }
+              ],
+              "status": {
+                "code": 1
+              }
+            },
+            {
+              "traceId": "4bf92f3577b34da6a3ce929d0e0e4736",
+              "spanId": "7aa99201bcde5431",
+              "parentSpanId": "00f067aa0ba902b7",
+              "name": "ChatOpenAI.synthesize_response",
+              "kind": 3,
+              "startTimeUnixNano": "1726999202300000000",
+              "endTimeUnixNano": "1726999203480000000",
+              "attributes": [
+                {
+                  "key": "gen_ai.system",
+                  "value": { "stringValue": "openai" }
+                },
+                {
+                  "key": "gen_ai.request.model",
+                  "value": { "stringValue": "gpt-4o-mini" }
+                },
+                {
+                  "key": "gen_ai.operation.name",
+                  "value": { "stringValue": "chat" }
+                },
+                {
+                  "key": "gen_ai.usage.prompt_tokens",
+                  "value": { "intValue": 720 }
+                },
+                {
+                  "key": "gen_ai.usage.completion_tokens",
+                  "value": { "intValue": 180 }
+                }
+              ],
+              "status": {
+                "code": 1
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

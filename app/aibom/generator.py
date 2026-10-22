@@ -131,13 +131,9 @@ def generate_native_aibom(db: Session, company_id: str) -> NativeAIBOM:
                 embedding_model=emb_mod,
                 usage_count=len(rag_spans)
             ))
-    elif any("rag" in t.tool_name.lower() or "vector" in t.tool_name.lower() for t in tools_list):
-        vector_stores_list.append(VectorStoreAsset(
-            system_name="pinecone",
-            embedding_model="text-embedding-3-small",
-            usage_count=int(total_traces * 0.70)
-        ))
-        
+    # Only record vector stores if observed in span telemetry; do not fabricate proprietary providers
+    # (Removed heuristic fallback that hardcoded pinecone and text-embedding-3-small)
+
     # 4. External APIs
     external_apis_list: List[ExternalAPIAsset] = []
     for m in models_list:
@@ -148,14 +144,37 @@ def generate_native_aibom(db: Session, company_id: str) -> NativeAIBOM:
                 call_count=m.call_count
             ))
             
-    # 5. Frameworks
-    frameworks_list: List[AgentFrameworkAsset] = [
-        AgentFrameworkAsset(
-            framework_name="Custom Distributed Orchestrator",
-            confidence="High (Telemetry signature)",
-            notes="Identified from orchestrator_agent span trees & multi-turn tool loops"
-        )
-    ]
+    # 5. Frameworks - only extract if declared in Agent metadata or observed in Span attributes
+    frameworks_list: List[AgentFrameworkAsset] = []
+    try:
+        from app.db.models import Agent
+        framework_query = db.query(Agent.framework).filter(Agent.company_id == company_id, Agent.framework != None).distinct().all()
+        for (fw,) in framework_query:
+            if fw:
+                frameworks_list.append(AgentFrameworkAsset(
+                    framework_name=fw,
+                    confidence="High (Agent metadata)",
+                    notes="Declared in agent configuration"
+                ))
+    except Exception:
+        pass
+
+    if not frameworks_list and total_traces > 0:
+        # Check span attributes for gen_ai.framework or agent.framework
+        fw_spans = db.query(Span).join(Trace, Span.trace_id == Trace.id)\
+            .filter(Trace.company_id == company_id, Span.attributes_json != None).all()
+        fw_set = set()
+        for s in fw_spans:
+            if isinstance(s.attributes_json, dict):
+                f_name = s.attributes_json.get("gen_ai.framework") or s.attributes_json.get("agent.framework")
+                if f_name:
+                    fw_set.add(f_name)
+        for f_name in fw_set:
+            frameworks_list.append(AgentFrameworkAsset(
+                framework_name=f_name,
+                confidence="High (Telemetry attribute)",
+                notes="Observed in span telemetry"
+            ))
     
     # 6. Human Checkpoints
     human_interventions = db.query(

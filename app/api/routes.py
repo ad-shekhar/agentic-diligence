@@ -79,6 +79,15 @@ def get_cyclonedx_aibom(
         }
         if not is_valid:
             headers["X-CycloneDX-Validation-Error"] = "; ".join(errors)
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "detail": f"CycloneDX schema validation failed: {'; '.join(errors)}",
+                    "errors": errors,
+                    "bom": cdx
+                },
+                headers=headers
+            )
         return JSONResponse(content=cdx, headers=headers)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -535,7 +544,14 @@ def create_company_bundle(
         company = db.query(Company).filter(Company.id == company_id).first()
         if not company:
             raise HTTPException(status_code=404, detail=f"Company {company_id} not found")
-        out_dir = payload.get("output_dir") or os.path.join(".", "bundles", company_id)
+        out_dir = payload.get("output_dir")
+        if out_dir:
+            norm_out = os.path.normpath(out_dir)
+            if ".." in norm_out.split(os.sep):
+                raise HTTPException(status_code=400, detail="Path traversal forbidden in output_dir")
+        else:
+            out_dir = os.path.join(".", "bundles", company_id)
+
         is_synth = payload.get("is_synthetic", False)
         bundle_info = compile_diligence_bundle_on_disk(db, company_id, out_dir, is_synthetic=is_synth)
         return bundle_info
@@ -553,9 +569,14 @@ def verify_bundle_endpoint(payload: Dict[str, Any] = Body(...)):
     try:
         from app.reporting.manifest import verify_bundle_integrity
         bundle_dir = payload.get("bundle_dir")
-        if not bundle_dir or not os.path.exists(bundle_dir):
-            raise HTTPException(status_code=400, detail=f"Bundle directory '{bundle_dir}' not found")
-        result = verify_bundle_integrity(bundle_dir)
+        if not bundle_dir or not isinstance(bundle_dir, str):
+            raise HTTPException(status_code=400, detail="bundle_dir must be a valid directory path string")
+        norm_dir = os.path.normpath(bundle_dir)
+        if ".." in norm_dir.split(os.sep):
+            raise HTTPException(status_code=400, detail="Path traversal forbidden in bundle_dir")
+        if not os.path.exists(norm_dir) or not os.path.isdir(norm_dir):
+            raise HTTPException(status_code=400, detail=f"Bundle directory '{bundle_dir}' not found or is not a directory")
+        result = verify_bundle_integrity(norm_dir)
         return result.to_dict()
     except HTTPException:
         raise

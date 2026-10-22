@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func, case
 
@@ -198,10 +198,14 @@ def generate_native_aibom(db: Session, company_id: str) -> NativeAIBOM:
         has_human_checkpoints=len(human_checkpoints) > 0
     )
 
-def export_cyclonedx_aibom(native_bom: NativeAIBOM) -> Dict[str, Any]:
+def export_cyclonedx_aibom(native_bom: NativeAIBOM, spec_version: str = "1.6") -> Dict[str, Any]:
     """
-    Exports NativeAIBOM into a CycloneDX 1.6-compatible JSON software bill of materials structure.
+    Exports NativeAIBOM into a CycloneDX 1.6 or 1.5 JSON software bill of materials structure.
+    Conforms to docs/phase-4/cyclonedx-decision.md.
     """
+    if spec_version not in ("1.5", "1.6"):
+        raise ValueError(f"Unsupported CycloneDX specVersion '{spec_version}'. Supported: '1.5', '1.6'.")
+
     components = []
     
     # 1. Foundation Models -> type "machine-learning-model"
@@ -263,7 +267,7 @@ def export_cyclonedx_aibom(native_bom: NativeAIBOM) -> Dict[str, Any]:
 
     return {
         "bomFormat": "CycloneDX",
-        "specVersion": "1.6",
+        "specVersion": spec_version,
         "serialNumber": f"urn:uuid:{uuid.uuid4()}",
         "version": 1,
         "metadata": {
@@ -289,3 +293,37 @@ def export_cyclonedx_aibom(native_bom: NativeAIBOM) -> Dict[str, Any]:
         },
         "components": components
     }
+
+
+def validate_cyclonedx_schema(
+    bom_dict: Dict[str, Any],
+    spec_version: Optional[str] = None
+) -> Tuple[bool, List[str]]:
+    """
+    Validates a generated CycloneDX BOM dictionary against the official OWASP JSON schema.
+    Returns (True, []) on valid, or (False, [error_messages]) on invalid.
+    """
+    import os
+    import json
+    import jsonschema
+
+    version = spec_version or bom_dict.get("specVersion", "1.6")
+    schema_dir = os.path.dirname(__file__)
+    schema_path = os.path.join(schema_dir, f"bom-{version}.schema.json")
+
+    if not os.path.exists(schema_path):
+        return (False, [f"Official CycloneDX schema for version '{version}' not found at {schema_path}."])
+
+    try:
+        with open(schema_path, "r", encoding="utf-8") as f:
+            schema_json = json.load(f)
+    except Exception as e:
+        return (False, [f"Failed to load schema file {schema_path}: {str(e)}"])
+
+    try:
+        jsonschema.validate(instance=bom_dict, schema=schema_json)
+        return (True, [])
+    except jsonschema.ValidationError as err:
+        return (False, [f"Schema validation error at path '{list(err.path)}': {err.message}"])
+    except Exception as err:
+        return (False, [f"Validation failed with unexpected error: {str(err)}"])

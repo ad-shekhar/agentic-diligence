@@ -1,9 +1,9 @@
 import os
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Body
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from app.db.session import get_db
 from app.db.models import Company, Tenant, Claim, Report
@@ -62,11 +62,24 @@ def get_diligence_package(company_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/companies/{company_id}/aibom/cyclonedx")
-def get_cyclonedx_aibom(company_id: str, db: Session = Depends(get_db)):
-    """Exports CycloneDX 1.6-compatible AIBOM JSON."""
+def get_cyclonedx_aibom(
+    company_id: str,
+    spec_version: str = Query("1.6", pattern="^(1.5|1.6)$"),
+    db: Session = Depends(get_db)
+):
+    """Exports CycloneDX 1.6 or 1.5-compatible AIBOM JSON with schema validation status."""
     try:
+        from app.aibom.generator import validate_cyclonedx_schema
         native_bom = generate_native_aibom(db, company_id)
-        return export_cyclonedx_aibom(native_bom)
+        cdx = export_cyclonedx_aibom(native_bom, spec_version=spec_version)
+        is_valid, errors = validate_cyclonedx_schema(cdx, spec_version=spec_version)
+        headers = {
+            "X-CycloneDX-SpecVersion": spec_version,
+            "X-CycloneDX-Valid": "true" if is_valid else "false"
+        }
+        if not is_valid:
+            headers["X-CycloneDX-Validation-Error"] = "; ".join(errors)
+        return JSONResponse(content=cdx, headers=headers)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -459,6 +472,91 @@ def get_company_metrics(
             "gap_heuristic_ms": gap_heuristic_ms,
             **metrics.to_dict(),
         }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/companies/{company_id}/claim-matrix")
+def get_company_claim_matrix(company_id: str, db: Session = Depends(get_db)):
+    """
+    Returns the formal Phase 4 Claim Verification Matrix adhering to docs/phase-4/data-contracts.md.
+    """
+    try:
+        from app.reporting.service import assemble_canonical_diligence_report_package
+        company = db.query(Company).filter(Company.id == company_id).first()
+        if not company:
+            raise HTTPException(status_code=404, detail=f"Company {company_id} not found")
+        _, _, matrix = assemble_canonical_diligence_report_package(db, company_id)
+        return matrix.to_dict()
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/companies/{company_id}/diligence-report")
+def get_company_diligence_report(
+    company_id: str,
+    format: str = Query("json", pattern="^(json|markdown)$"),
+    is_synthetic: bool = Query(False),
+    db: Session = Depends(get_db)
+):
+    """
+    Returns the Phase 4 Canonical Diligence Report in JSON or Markdown format.
+    """
+    try:
+        from app.reporting.service import assemble_canonical_diligence_report_package
+        company = db.query(Company).filter(Company.id == company_id).first()
+        if not company:
+            raise HTTPException(status_code=404, detail=f"Company {company_id} not found")
+        rep_json, rep_md, _ = assemble_canonical_diligence_report_package(db, company_id, is_synthetic=is_synthetic)
+        if format == "markdown":
+            return PlainTextResponse(content=rep_md, media_type="text/markdown")
+        return rep_json
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/companies/{company_id}/bundle")
+def create_company_bundle(
+    company_id: str,
+    payload: Dict[str, Any] = Body(default={}),
+    db: Session = Depends(get_db)
+):
+    """
+    Compiles an evidence bundle and cryptographic manifest on disk.
+    """
+    try:
+        from app.reporting.service import compile_diligence_bundle_on_disk
+        company = db.query(Company).filter(Company.id == company_id).first()
+        if not company:
+            raise HTTPException(status_code=404, detail=f"Company {company_id} not found")
+        out_dir = payload.get("output_dir") or os.path.join(".", "bundles", company_id)
+        is_synth = payload.get("is_synthetic", False)
+        bundle_info = compile_diligence_bundle_on_disk(db, company_id, out_dir, is_synthetic=is_synth)
+        return bundle_info
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/bundles/verify")
+def verify_bundle_endpoint(payload: Dict[str, Any] = Body(...)):
+    """
+    Verifies the cryptographic integrity and completeness of an evidence bundle directory.
+    """
+    try:
+        from app.reporting.manifest import verify_bundle_integrity
+        bundle_dir = payload.get("bundle_dir")
+        if not bundle_dir or not os.path.exists(bundle_dir):
+            raise HTTPException(status_code=400, detail=f"Bundle directory '{bundle_dir}' not found")
+        result = verify_bundle_integrity(bundle_dir)
+        return result.to_dict()
     except HTTPException:
         raise
     except Exception as e:

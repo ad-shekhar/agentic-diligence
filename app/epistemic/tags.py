@@ -42,6 +42,7 @@ class VerificationVerdict(str, Enum):
     PARTIALLY_VERIFIED = "PARTIALLY_VERIFIED"   # Stated claim is within reasonable pre-declared tolerance
     CONTRADICTED = "CONTRADICTED"               # Runtime evidence mathematically conflicts with claim
     INSUFFICIENT_EVIDENCE = "INSUFFICIENT_EVIDENCE" # Missing data, low sample size, or unknown interval dominates
+    UNVERIFIED = "UNVERIFIED"                   # Claim has not been evaluated against telemetry
 
 @dataclass(frozen=True)
 class ConfidenceBounds:

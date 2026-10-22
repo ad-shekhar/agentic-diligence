@@ -202,7 +202,10 @@ def normalize_span_payload(
     start_ts = raw_span.get("startTimeUnixNano") or raw_span.get("start_time") or raw_span.get("startTime")
     end_ts = raw_span.get("endTimeUnixNano") or raw_span.get("end_time") or raw_span.get("endTime")
 
-    start_dt = parse_otlp_timestamp(start_ts) if start_ts is not None else datetime.now(timezone.utc).replace(tzinfo=None)
+    # Use fixed sentinel (Unix epoch) when timestamp is absent to keep normalization deterministic.
+    # Callers can detect missing timestamps by checking duration_ms == 0 and missing_fields.
+    _EPOCH_SENTINEL = datetime(1970, 1, 1, 0, 0, 0)
+    start_dt = parse_otlp_timestamp(start_ts) if start_ts is not None else _EPOCH_SENTINEL
     end_dt = parse_otlp_timestamp(end_ts) if end_ts is not None else start_dt
     duration_ms = max(0.0, (end_dt - start_dt).total_seconds() * 1000.0)
 

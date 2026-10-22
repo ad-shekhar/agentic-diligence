@@ -295,10 +295,32 @@ def evaluate_single_claim(
         )
 
     # Check 4: Deterministic Metric Bounds Evaluation
+    # If evidence has no numeric value and no confidence bounds, it cannot be evaluated
+    if evidence.value is None and (evidence.bounds is None or evidence.bounds.lower is None):
+        limitations.append("Evidence contains no numeric value or confidence bounds.")
+        return ClaimVerificationMatrixEntry(
+            claim_id=claim.claim_id,
+            verbatim_claim_text=claim.stated_claim_text,
+            claim_source=claim.source_document,
+            source_trust_level=claim.evidence_trust_minimum,
+            target_dimension=dim_str,
+            target_operator=claim.target_operator.value,
+            target_threshold=claim.target_value,
+            target_units=claim.unit,
+            metric_name=metric_name,
+            metric_version="1.0.0",
+            metric_denominator=metric_denom,
+            observed_epistemic_value=evidence,
+            verification_verdict=VerificationVerdict.INSUFFICIENT_EVIDENCE,
+            verdict_reason="Evidence contains no numeric value or confidence bounds for evaluation.",
+            evidence_references=refs,
+            limitations_and_assumptions=limitations
+        )
+
     bounds = evidence.bounds or ConfidenceBounds(
-        lower=evidence.value or 0.0,
-        point_estimate=evidence.value or 0.0,
-        upper=evidence.value or 0.0
+        lower=evidence.value,
+        point_estimate=evidence.value,
+        upper=evidence.value
     )
     target = claim.target_value
     op = claim.target_operator
@@ -315,12 +337,23 @@ def evaluate_single_claim(
         if diff >= 0:
             verdict = VerificationVerdict.VERIFIED
             reason = f"Observed conservative lower bound of {observed_bound:.2f} {claim.unit} meets or exceeds target of {target:.2f} {claim.unit}."
-        elif abs(diff) <= tol:
-            verdict = VerificationVerdict.PARTIALLY_VERIFIED
-            reason = f"Observed lower bound of {observed_bound:.2f} {claim.unit} is within allowable tolerance margin ({tol:.1f}%) of stated target {target:.2f} {claim.unit}."
         else:
-            verdict = VerificationVerdict.CONTRADICTED
-            reason = f"Observed lower bound of {observed_bound:.2f} {claim.unit} contradicts claim; falls below target {target:.2f} {claim.unit} by {abs(diff):.2f}."
+            is_within_tol = False
+            if claim.unit == "%":
+                # Percentage points difference
+                is_within_tol = abs(diff) <= tol
+            elif target > 0:
+                # Relative percentage shortfall
+                is_within_tol = (abs(diff) / target) * 100.0 <= tol
+            elif target == 0:
+                is_within_tol = abs(diff) <= 0.0001
+
+            if is_within_tol:
+                verdict = VerificationVerdict.PARTIALLY_VERIFIED
+                reason = f"Observed lower bound of {observed_bound:.2f} {claim.unit} is within allowable tolerance margin ({tol:.1f}%) of stated target {target:.2f} {claim.unit}."
+            else:
+                verdict = VerificationVerdict.CONTRADICTED
+                reason = f"Observed lower bound of {observed_bound:.2f} {claim.unit} contradicts claim; falls below target {target:.2f} {claim.unit} by {abs(diff):.2f}."
 
     elif op == ComparisonOperator.LESS_EQUAL:
         observed_bound = bounds.upper

@@ -141,6 +141,15 @@ def verify_claim_against_evidence(
         )
 
     # 4. Numeric Bounds Evaluation
+    if evidence.value is None and (evidence.bounds is None or evidence.bounds.lower is None):
+        return ClaimVerificationResult(
+            claim=claim,
+            verdict=VerificationVerdict.INSUFFICIENT_EVIDENCE,
+            epistemic_evidence=evidence,
+            reasoning="Evidence contains no numeric value or confidence bounds for evaluation.",
+            unknown_impact_statement="Metric value is absent."
+        )
+
     bounds = evidence.bounds or ConfidenceBounds(lower=evidence.value, point_estimate=evidence.value, upper=evidence.value)
     target = claim.target_value
     op = claim.target_operator
@@ -156,12 +165,21 @@ def verify_claim_against_evidence(
         if diff >= 0:
             verdict = VerificationVerdict.VERIFIED
             reasoning = f"Observed lower bound of {observed_bound:.2f} {claim.unit} meets or exceeds target of {target:.2f} {claim.unit}."
-        elif abs(diff) <= tol:
-            verdict = VerificationVerdict.PARTIALLY_VERIFIED
-            reasoning = f"Observed lower bound of {observed_bound:.2f} {claim.unit} is within allowable tolerance margin of {tol:.1f}% from stated target {target:.2f}."
         else:
-            verdict = VerificationVerdict.CONTRADICTED
-            reasoning = f"Observed lower bound of {observed_bound:.2f} {claim.unit} falls significantly below stated target of {target:.2f} {claim.unit} (shortfall: {abs(diff):.2f})."
+            is_within_tol = False
+            if claim.unit == "%":
+                is_within_tol = abs(diff) <= tol
+            elif target > 0:
+                is_within_tol = (abs(diff) / target) * 100.0 <= tol
+            elif target == 0:
+                is_within_tol = abs(diff) <= 0.0001
+
+            if is_within_tol:
+                verdict = VerificationVerdict.PARTIALLY_VERIFIED
+                reasoning = f"Observed lower bound of {observed_bound:.2f} {claim.unit} is within allowable tolerance margin of {tol:.1f}% from stated target {target:.2f}."
+            else:
+                verdict = VerificationVerdict.CONTRADICTED
+                reasoning = f"Observed lower bound of {observed_bound:.2f} {claim.unit} falls significantly below stated target of {target:.2f} {claim.unit} (shortfall: {abs(diff):.2f})."
             
     elif op == ComparisonOperator.LESS_EQUAL:
         observed_bound = bounds.upper

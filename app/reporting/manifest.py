@@ -230,12 +230,78 @@ def verify_bundle_integrity(
     declared_paths: Set[str] = set()
     files_verified = 0
 
+    abs_bundle_dir = os.path.abspath(bundle_dir)
+
     for art in artifacts_list:
-        rel_path = art.get("path", "").replace("/", os.sep)
-        declared_paths.add(os.path.normpath(rel_path))
-        full_path = os.path.join(bundle_dir, rel_path)
+        raw_path = art.get("path", "")
+        if not raw_path:
+            return BundleVerificationResult(
+                status=VerificationStatus.CORRUPTED_BUNDLE,
+                is_valid=False,
+                manifest_version=version,
+                total_files_declared=total_declared,
+                files_verified=0,
+                error_message="Manifest artifact contains empty path."
+            )
+
+        # Check for absolute path
+        if os.path.isabs(raw_path):
+            return BundleVerificationResult(
+                status=VerificationStatus.CORRUPTED_BUNDLE,
+                is_valid=False,
+                manifest_version=version,
+                total_files_declared=total_declared,
+                files_verified=0,
+                error_message=f"Artifact path must be relative: absolute path '{raw_path}' is forbidden."
+            )
+
+        rel_path = raw_path.replace("/", os.sep)
+        norm_rel = os.path.normpath(rel_path)
+        full_path = os.path.normpath(os.path.join(abs_bundle_dir, norm_rel))
+
+        # Check for path traversal escaping bundle root
+        try:
+            common = os.path.commonpath([abs_bundle_dir, full_path])
+        except ValueError:
+            common = ""
+
+        if common != abs_bundle_dir:
+            return BundleVerificationResult(
+                status=VerificationStatus.CORRUPTED_BUNDLE,
+                is_valid=False,
+                manifest_version=version,
+                total_files_declared=total_declared,
+                files_verified=0,
+                error_message=f"Path traversal detected: artifact '{raw_path}' escapes bundle root."
+            )
+
+        # Check for duplicate declared paths (ADV-005)
+        if norm_rel in declared_paths:
+            return BundleVerificationResult(
+                status=VerificationStatus.CORRUPTED_BUNDLE,
+                is_valid=False,
+                manifest_version=version,
+                total_files_declared=total_declared,
+                files_verified=0,
+                error_message=f"Duplicate artifact path declared in manifest: '{raw_path}'."
+            )
+        declared_paths.add(norm_rel)
+
         expected_sha = art.get("sha256", "")
         method = art.get("serialization_method", SerializationMethod.CANONICAL_JSON_COMPACT.value)
+
+        # Check if symlink escapes bundle root
+        if os.path.islink(full_path):
+            real_target = os.path.realpath(full_path)
+            if os.path.commonpath([abs_bundle_dir, real_target]) != abs_bundle_dir:
+                return BundleVerificationResult(
+                    status=VerificationStatus.CORRUPTED_BUNDLE,
+                    is_valid=False,
+                    manifest_version=version,
+                    total_files_declared=total_declared,
+                    files_verified=0,
+                    error_message=f"Symlink escape detected: artifact '{raw_path}' points outside bundle."
+                )
 
         if not os.path.exists(full_path):
             missing_files.append(art.get("path", ""))

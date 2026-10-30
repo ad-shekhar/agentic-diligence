@@ -199,8 +199,20 @@ def normalize_span_payload(
     span_kind = str(raw_span.get("kind") or raw_span.get("span_kind") or "INTERNAL")
 
     # Timestamps & Duration
-    start_ts = raw_span.get("startTimeUnixNano") or raw_span.get("start_time") or raw_span.get("startTime")
-    end_ts = raw_span.get("endTimeUnixNano") or raw_span.get("end_time") or raw_span.get("endTime")
+    start_ts = (
+        raw_span.get("startTimeUnixNano")
+        or raw_span.get("start_time")
+        or raw_span.get("startTime")
+        or raw_span.get("start_time_ns")
+        or raw_span.get("start_time_unix_nano")
+    )
+    end_ts = (
+        raw_span.get("endTimeUnixNano")
+        or raw_span.get("end_time")
+        or raw_span.get("endTime")
+        or raw_span.get("end_time_ns")
+        or raw_span.get("end_time_unix_nano")
+    )
 
     # Use fixed sentinel (Unix epoch) when timestamp is absent to keep normalization deterministic.
     # Callers can detect missing timestamps by checking duration_ms == 0 and missing_fields.
@@ -285,7 +297,7 @@ def normalize_span_payload(
     tool_name, tool_key, tool_conf = resolve_aliased_attribute(attrs, TOOL_NAME_ALIASES)
     if tool_conf:
         conflicts["tool_name"] = tool_conf
-    tool_call_id = attrs.get("gen_ai.tool.call_id")
+    tool_call_id = attrs.get("gen_ai.tool.call_id") or attrs.get("gen_ai.tool.call.id") or attrs.get("tool_call_id") or attrs.get("tool.call_id")
     tool_status = attrs.get("gen_ai.tool.status")
 
     # 7. Error Detection

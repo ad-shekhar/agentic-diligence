@@ -567,6 +567,171 @@ def cmd_aibom(company, spec_version, validate, output):
         db.close()
 
 
+
+
+# ==============================================================================
+# Phase 6: Unified Evidence & Verification CLI Group
+# ==============================================================================
+
+@cli.group("evidence")
+def evidence_group():
+    """Unified evidence ingestion, correlation, and multi-source claim verification."""
+    pass
+
+
+@evidence_group.command("ingest")
+@click.option("--file", "file_path", required=True, help="Path to evidence JSON file (OTLP, MCP, Browser)")
+@click.option("--company", default="default_target", help="Target company ID")
+@click.option("--source-type", type=click.Choice(["otlp", "mcp", "browser"]), default=None, help="Explicit adapter hint")
+def cmd_evidence_ingest(file_path, company, source_type):
+    """Ingests multi-source evidence payload into the unified evidence registry."""
+    from app.adapters.pipeline import default_pipeline
+    init_db()
+    db = SessionLocal()
+    try:
+        with open(file_path, "rb") as f:
+            raw_bytes = f.read()
+
+        receipt = default_pipeline.ingest_evidence(
+            raw_bytes=raw_bytes,
+            source_type=source_type,
+            company_id=company,
+            db=db,
+        )
+        d = receipt.to_dict()
+        click.echo("\n=======================================================================")
+        click.echo(f"  EVIDENCE INGESTION RECEIPT [{d['status']}]")
+        click.echo("=======================================================================")
+        click.echo(f"  Source Type     : {d['source_type']}")
+        click.echo(f"  Payload SHA-256 : {d['payload_hash']}")
+        click.echo(f"  Byte Size       : {d['byte_size']} bytes")
+        click.echo(f"  Spans Ingested  : {d['total_spans_ingested']}")
+        click.echo(f"  Duplicates      : {d['duplicates_detected']}")
+        click.echo(f"  Conflicts       : {d['conflicts_detected']}")
+        click.echo(f"  Traces          : {len(d['trace_ids'])} traces ({', '.join(d['trace_ids'][:3])}{'...' if len(d['trace_ids']) > 3 else ''})")
+        click.echo("=======================================================================\n")
+    finally:
+        db.close()
+
+
+@evidence_group.command("verify")
+@click.option("--company", default="default_target", help="Target company ID")
+@click.option("--claims-file", default=None, help="Path to JSON file containing list of ClaimSchema specifications")
+@click.option("--min-sample-size", default=15, help="Statistical threshold for sample size")
+@click.option("--output-json", default=None, help="Path to export verification report JSON")
+def cmd_evidence_verify(company, claims_file, min_sample_size, output_json):
+    """Runs deterministic claim verification against correlated evidence in the registry."""
+    from app.adapters.pipeline import default_pipeline
+    from app.epistemic.claims import ClaimSchema, ClaimDimension, ComparisonOperator
+    from app.epistemic.tags import TrustLevel
+
+    init_db()
+    db = SessionLocal()
+    try:
+        claims = []
+        if claims_file:
+            with open(claims_file, "r", encoding="utf-8") as f:
+                raw_claims = json.load(f)
+            for rc in raw_claims:
+                claims.append(ClaimSchema(
+                    claim_id=rc.get("claim_id", f"claim-{len(claims)+1}"),
+                    dimension=ClaimDimension(rc.get("dimension", "autonomy")),
+                    stated_claim_text=rc.get("stated_claim_text", ""),
+                    target_operator=ComparisonOperator(rc.get("target_operator", ">=")),
+                    target_value=float(rc.get("target_value", 0.0)),
+                    unit=rc.get("unit", "%"),
+                    evidence_trust_minimum=TrustLevel(rc.get("evidence_trust_minimum", "T1")),
+                    source_document=rc.get("source_document", "Pitch Deck"),
+                    tolerance_pct=float(rc.get("tolerance_pct", 5.0)),
+                ))
+        else:
+            claims = [
+                ClaimSchema(
+                    claim_id="claim-autonomy-80",
+                    dimension=ClaimDimension.AUTONOMY,
+                    stated_claim_text="System operates with at least 80% task autonomy without human intervention",
+                    target_operator=ComparisonOperator.GREATER_EQUAL,
+                    target_value=80.0,
+                    unit="%",
+                ),
+                ClaimSchema(
+                    claim_id="claim-cost-05",
+                    dimension=ClaimDimension.UNIT_COST,
+                    stated_claim_text="Mean cost per atomic task does not exceed $0.05",
+                    target_operator=ComparisonOperator.LESS_EQUAL,
+                    target_value=0.05,
+                    unit="USD",
+                ),
+                ClaimSchema(
+                    claim_id="claim-reliability-5",
+                    dimension=ClaimDimension.RELIABILITY,
+                    stated_claim_text="Span error rate does not exceed 5%",
+                    target_operator=ComparisonOperator.LESS_EQUAL,
+                    target_value=5.0,
+                    unit="%",
+                ),
+            ]
+
+        result = default_pipeline.verify_claims(
+            claims=claims,
+            company_id=company,
+            min_sample_size=min_sample_size,
+            db=db,
+        )
+        d = result.to_dict()
+
+        click.echo("\n=======================================================================")
+        click.echo(f"  UNIFIED CLAIM VERIFICATION REPORT [{company.upper()}]")
+        click.echo("=======================================================================")
+        click.echo(f"  Traces Correlated : {d['total_correlated_traces']}")
+        click.echo(f"  Spans Evaluated   : {d['total_spans']}")
+        click.echo(f"  Anomalies Flagged : {len(d['anomalies'])}")
+        click.echo("-----------------------------------------------------------------------")
+        click.echo("  VERIFICATION SUMMARY:")
+        s = d["summary"]
+        click.echo(f"    Verified             : {s.get('verified', 0)}")
+        click.echo(f"    Partially Verified   : {s.get('partially_verified', 0)}")
+        click.echo(f"    Contradicted         : {s.get('contradicted', 0)}")
+        click.echo(f"    Insufficient Evidence: {s.get('insufficient_evidence', 0)}")
+        click.echo("-----------------------------------------------------------------------")
+
+        for entry in d["matrix"]["entries"]:
+            verdict = entry["verification_verdict"]
+            click.echo(f"  [{verdict}] Claim {entry['claim_id']}: {entry['verbatim_claim_text']}")
+            click.echo(f"      Dimension : {entry['target_dimension']} ({entry['target_operator']} {entry['target_threshold']} {entry['target_units']})")
+            click.echo(f"      Reason    : {entry['verdict_reason']}")
+            if entry.get("limitations_and_assumptions"):
+                click.echo(f"      Caveats   : {'; '.join(entry['limitations_and_assumptions'])}")
+            click.echo("")
+
+        click.echo("=======================================================================\n")
+
+        if output_json:
+            with open(output_json, "w", encoding="utf-8") as f:
+                json.dump(d, f, indent=2)
+            click.echo(f"Saved report to: {output_json}")
+    finally:
+        db.close()
+
+
+@evidence_group.command("provenance")
+@click.option("--company", default=None, help="Filter by company ID")
+def cmd_evidence_provenance(company):
+    """Inspects registered cryptographic provenance envelopes."""
+    from app.adapters.pipeline import default_pipeline
+    envelopes = default_pipeline.registry.get_provenance_envelopes(company_id=company)
+    click.echo("\n=======================================================================")
+    click.echo(f"  CRYPTOGRAPHIC PROVENANCE ENVELOPES ({len(envelopes)} registered)")
+    click.echo("=======================================================================")
+    for i, env in enumerate(envelopes, 1):
+        click.echo(f"  [{i}] SHA-256   : {env.payload_sha256}")
+        click.echo(f"      Env Hash  : {env.compute_envelope_hash()}")
+        click.echo(f"      Trust     : {env.epistemic_trust_level.value}")
+        click.echo(f"      Received  : {env.ingested_at_utc.isoformat()}")
+        if env.redacted_fields:
+            click.echo(f"      Redacted  : {', '.join(env.redacted_fields)}")
+    click.echo("=======================================================================\n")
+
 if __name__ == "__main__":
     cli()
 

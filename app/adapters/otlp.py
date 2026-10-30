@@ -6,7 +6,7 @@ Acts as the canonical reference adapter for OTLP HTTP/JSON telemetry payloads.
 """
 
 import json
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Set
 
 from app.adapters.base import BaseEvidenceAdapter, AdapterCapability, ProvenanceEnvelope
 from app.epistemic.tags import TrustLevel
@@ -105,13 +105,21 @@ class OtlpEvidenceAdapter(BaseEvidenceAdapter):
 
         normalized_spans: List[NormalizedSpan] = []
         errors: List[str] = []
+        seen_keys: Set[Tuple[str, str]] = set()
+        duplicate_count = 0
 
         for raw_span, default_tid, r_attrs in extracted:
             try:
                 tid_candidate = raw_span.get("traceId") or raw_span.get("trace_id") or default_tid
                 tid = validate_trace_span_id(tid_candidate, "traceId")
                 sid_candidate = raw_span.get("spanId") or raw_span.get("span_id")
-                validate_trace_span_id(sid_candidate, "spanId")
+                sid = validate_trace_span_id(sid_candidate, "spanId")
+
+                span_key = (tid, sid)
+                if span_key in seen_keys:
+                    duplicate_count += 1
+                    continue
+                seen_keys.add(span_key)
 
                 # If resource attributes exist, attach them into raw_span attributes under resource prefix if not set
                 if r_attrs and isinstance(raw_span.get("attributes"), dict):
@@ -140,6 +148,7 @@ class OtlpEvidenceAdapter(BaseEvidenceAdapter):
                 "company_id": company_id,
                 "total_spans": len(normalized_spans),
                 "unique_traces": len({s.trace_id for s in normalized_spans}),
+                "duplicate_spans_filtered": duplicate_count,
             },
         )
 

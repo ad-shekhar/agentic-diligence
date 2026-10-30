@@ -169,3 +169,25 @@ def test_consolidated_ground_truth_pilot_execution():
     assert d["confusion_matrix"]["false_positives"] == 0
     assert d["false_positive_verification_rate_pct"] == 0.0
 
+
+def test_phase6_unified_benchmarks_execution():
+    """Phase 6 unified pipeline benchmarks across all 7 scenarios achieve 0% FPVR, 0% FNVR."""
+    from app.adapters.benchmarks import run_phase6_benchmarks
+    bench = run_phase6_benchmarks()
+
+    assert bench.total_scenarios_evaluated == 7
+    assert bench.total_traces_processed == 140
+    assert bench.total_claims_evaluated == 13
+    assert bench.false_positives == 0
+    assert bench.false_negatives == 0
+    assert bench.false_positive_verification_rate == 0.0
+    assert bench.false_negative_verification_rate == 0.0
+    assert bench.verification_accuracy == 1.0
+    assert bench.duplicate_detection_accuracy == 1.0
+    assert bench.evidence_correlation_accuracy == 1.0
+    assert bench.provenance_integrity_failures == 0
+    assert bench.mean_ingestion_latency_ms < 50.0
+    assert bench.mean_verification_latency_ms < 50.0
+    assert bench.passed_audit is True
+
+

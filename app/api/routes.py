@@ -583,3 +583,112 @@ def verify_bundle_endpoint(payload: Dict[str, Any] = Body(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ==============================================================================
+# Phase 6: Unified Evidence Ingestion & Verification Endpoints
+# ==============================================================================
+
+@router.post("/evidence/ingest")
+def ingest_unified_evidence(
+    payload: Dict[str, Any] = Body(...),
+    source_type: Optional[str] = Query(None, description="Optional adapter hint: 'otlp', 'mcp', or 'browser'"),
+    company_id: Optional[str] = Query("default_target", description="Target company identifier"),
+    content_type: str = Query("application/json"),
+    db: Session = Depends(get_db)
+):
+    """
+    Ingests telemetry evidence from OTLP, MCP, or Browser sources into the Unified Evidence Registry.
+    Computes cryptographic SHA-256 provenance digests and handles idempotency.
+    """
+    from app.adapters.pipeline import default_pipeline
+    import json
+    try:
+        raw_bytes = json.dumps(payload).encode("utf-8")
+        receipt = default_pipeline.ingest_evidence(
+            raw_bytes=raw_bytes,
+            source_type=source_type,
+            company_id=company_id,
+            content_type=content_type,
+            db=db,
+        )
+        return receipt.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/evidence/verify")
+def verify_unified_claims(
+    payload: Dict[str, Any] = Body(...),
+    db: Session = Depends(get_db)
+):
+    """
+    Executes claim verification over multi-source correlated telemetry in the unified registry.
+    Returns explainable verdicts (VERIFIED, CONTRADICTED, INSUFFICIENT_EVIDENCE).
+    """
+    from app.adapters.pipeline import default_pipeline
+    from app.epistemic.claims import ClaimSchema, ClaimDimension, ComparisonOperator
+    from app.epistemic.tags import TrustLevel
+    try:
+        company_id = payload.get("company_id", "default_target")
+        raw_claims = payload.get("claims", [])
+        min_sample_size = int(payload.get("min_sample_size", 15))
+
+        claims: List[ClaimSchema] = []
+        for rc in raw_claims:
+            claims.append(ClaimSchema(
+                claim_id=rc.get("claim_id", f"claim-{len(claims)+1}"),
+                dimension=ClaimDimension(rc.get("dimension", "autonomy")),
+                stated_claim_text=rc.get("stated_claim_text", ""),
+                target_operator=ComparisonOperator(rc.get("target_operator", ">=")),
+                target_value=float(rc.get("target_value", 0.0)),
+                unit=rc.get("unit", "%"),
+                evidence_trust_minimum=TrustLevel(rc.get("evidence_trust_minimum", "T1")),
+                source_document=rc.get("source_document", "Pitch Deck"),
+                tolerance_pct=float(rc.get("tolerance_pct", 5.0)),
+            ))
+
+        result = default_pipeline.verify_claims(
+            claims=claims,
+            company_id=company_id,
+            min_sample_size=min_sample_size,
+            db=db,
+        )
+        return result.to_dict()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/evidence/records")
+def list_evidence_records(
+    company_id: Optional[str] = Query(None),
+    trace_id: Optional[str] = Query(None),
+    source_type: Optional[str] = Query(None),
+    include_duplicates: bool = Query(False),
+):
+    """Lists registered evidence records matching filters."""
+    from app.adapters.pipeline import default_pipeline
+    from app.adapters.registry import SourceType
+    try:
+        st = SourceType(source_type) if source_type else None
+        records = default_pipeline.registry.get_records(
+            company_id=company_id,
+            trace_id=trace_id,
+            source_type=st,
+            include_duplicates=include_duplicates,
+        )
+        return [r.to_dict() for r in records]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/evidence/provenance")
+def get_provenance_envelopes(
+    company_id: Optional[str] = Query(None),
+):
+    """Returns cryptographic provenance envelopes registered for diligence scope."""
+    from app.adapters.pipeline import default_pipeline
+    try:
+        envelopes = default_pipeline.registry.get_provenance_envelopes(company_id=company_id)
+        return [e.to_dict() for e in envelopes]
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+

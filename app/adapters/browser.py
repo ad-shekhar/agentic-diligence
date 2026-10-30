@@ -157,7 +157,7 @@ class BrowserEvidenceAdapter(BaseEvidenceAdapter):
             selector = cleaned_event.get("target_selector", "unknown_element")
 
             # Timestamps
-            ts_raw = cleaned_event.get("timestamp")
+            ts_raw = cleaned_event.get("timestamp") or cleaned_event.get("timestamp_utc")
             if ts_raw:
                 try:
                     start_dt = datetime.fromisoformat(str(ts_raw).replace("Z", "+00:00")).replace(tzinfo=None)
@@ -177,17 +177,19 @@ class BrowserEvidenceAdapter(BaseEvidenceAdapter):
             if action_type in (
                 BrowserActionType.APPROVAL_MODAL_CONFIRM.value,
                 BrowserActionType.APPROVAL_MODAL_REJECT.value,
-            ):
+            ) or cleaned_event.get("human_override") or cleaned_event.get("is_human_intervention"):
                 is_hitl = True
                 hitl_action_type = f"browser_user_{action_type}"
                 hitl_method = "OBSERVED_TELEMETRY"
                 human_modals_observed += 1
 
             status_code = "ERROR" if action_type == BrowserActionType.APPROVAL_MODAL_REJECT.value else "OK"
+            event_trace_id = cleaned_event.get("trace_id") or top_trace_id
+            tool_call_id = cleaned_event.get("tool_call_id")
 
             span = NormalizedSpan(
                 span_id=f"browser-span-{action_id}",
-                trace_id=top_trace_id,
+                trace_id=event_trace_id,
                 name=f"browser_action::{action_type}",
                 span_kind="INTERNAL",
                 start_time=start_dt,
@@ -195,6 +197,7 @@ class BrowserEvidenceAdapter(BaseEvidenceAdapter):
                 duration_ms=duration_ms,
                 status_code=status_code,
                 tool_name=selector if action_type == BrowserActionType.TOOL_TRIGGER.value else None,
+                tool_call_id=tool_call_id,
                 is_human_intervention=is_hitl,
                 human_action_type=hitl_action_type,
                 intervention_detection_method=hitl_method,

@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from sqlalchemy import (
-    Column, String, Text, Float, Integer, Boolean, DateTime, ForeignKey, Enum as SQLEnum, JSON
+    Column, String, Text, Float, Integer, Boolean, DateTime, ForeignKey, Enum as SQLEnum, JSON, Index
 )
 from sqlalchemy.orm import relationship
 import enum
@@ -54,6 +54,7 @@ class Tenant(Base):
     created_at = Column(DateTime, default=utc_now)
     
     companies = relationship("Company", back_populates="tenant", cascade="all, delete-orphan")
+    api_keys = relationship("TenantApiKey", back_populates="tenant", cascade="all, delete-orphan")
 
 class Company(Base):
     __tablename__ = "companies"
@@ -70,6 +71,7 @@ class Company(Base):
     traces = relationship("Trace", back_populates="company", cascade="all, delete-orphan")
     claims = relationship("Claim", back_populates="company", cascade="all, delete-orphan")
     reports = relationship("Report", back_populates="company", cascade="all, delete-orphan")
+    api_keys = relationship("TenantApiKey", back_populates="company", cascade="all, delete-orphan")
 
 class DataSource(Base):
     __tablename__ = "data_sources"
@@ -305,4 +307,99 @@ class PayloadProvenance(Base):
     status = Column(String(50), nullable=False, default="SUCCESS") # SUCCESS, PARTIAL, FAILED
     error_message = Column(Text, nullable=True)
     received_at = Column(DateTime, default=utc_now)
+
+
+class TenantApiKey(Base):
+    """
+    API key entity enforcing authenticated tenant/company boundaries.
+    Never stores plaintext API keys; only stores SHA-256 key_hash and non-sensitive key_prefix.
+    """
+    __tablename__ = "tenant_api_keys"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    key_hash = Column(String(64), nullable=False, unique=True, index=True)
+    key_prefix = Column(String(16), nullable=False, index=True)
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, index=True)
+    company_id = Column(String(36), ForeignKey("companies.id"), nullable=True, index=True)
+    name = Column(String(255), nullable=False, default="Default API Key")
+    is_active = Column(Boolean, default=True, nullable=False)
+    allowed_scopes = Column(String(255), default="evidence:read,evidence:write", nullable=False)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    expires_at = Column(DateTime, nullable=True)
+    last_used_at = Column(DateTime, nullable=True)
+
+    tenant = relationship("Tenant", back_populates="api_keys")
+    company = relationship("Company", back_populates="api_keys")
+
+
+class DurableEvidenceRecord(Base):
+    """
+    Durable relational storage for Normalized Evidence Records.
+    Enables UnifiedEvidenceRegistry to survive process restarts, maintain
+    historical telemetry, and prevent duplicate registration races.
+    """
+    __tablename__ = "durable_evidence_records"
+
+    evidence_id = Column(String(128), primary_key=True)
+    company_id = Column(String(64), nullable=False, index=True)
+    source_type = Column(String(20), nullable=False, index=True)
+    adapter_id = Column(String(100), nullable=False)
+    adapter_version = Column(String(50), nullable=False)
+    provenance_hash = Column(String(64), nullable=False, index=True)
+    trace_id = Column(String(128), nullable=False, index=True)
+    span_id = Column(String(128), nullable=False)
+    parent_span_id = Column(String(128), nullable=True)
+    name = Column(String(255), nullable=False)
+    event_timestamp_utc = Column(DateTime, nullable=False, index=True)
+    ingested_at_utc = Column(DateTime, default=utc_now, nullable=False)
+    trust_level = Column(String(20), nullable=False)
+    epistemic_tag = Column(String(50), nullable=False)
+    status = Column(String(50), nullable=False)
+    conflict_details = Column(JSON, nullable=True)
+    span_json = Column(JSON, nullable=False)
+    envelope_json = Column(JSON, nullable=False)
+
+    __table_args__ = (
+        Index("ix_durable_evidence_lookup", "company_id", "source_type", "trace_id", "span_id"),
+        Index("ix_durable_evidence_company_time", "company_id", "event_timestamp_utc"),
+    )
+
+    def to_evidence_record(self):
+        from app.adapters.registry import EvidenceRecord, SourceType, EvidenceStatus
+        from app.epistemic.tags import TrustLevel, EpistemicTag
+        from app.adapters.base import ProvenanceEnvelope
+        from app.ingestion.schema import NormalizedSpan
+
+        span = NormalizedSpan.from_dict(self.span_json)
+        envelope = ProvenanceEnvelope.from_dict(self.envelope_json)
+
+        ev_dt = self.event_timestamp_utc
+        if ev_dt and not ev_dt.tzinfo:
+            ev_dt = ev_dt.replace(tzinfo=timezone.utc)
+
+        ing_dt = self.ingested_at_utc
+        if ing_dt and not ing_dt.tzinfo:
+            ing_dt = ing_dt.replace(tzinfo=timezone.utc)
+
+        return EvidenceRecord(
+            evidence_id=self.evidence_id,
+            source_type=SourceType(self.source_type),
+            adapter_id=self.adapter_id,
+            adapter_version=self.adapter_version,
+            company_id=self.company_id,
+            provenance_hash=self.provenance_hash,
+            trace_id=self.trace_id,
+            span_id=self.span_id,
+            parent_span_id=self.parent_span_id,
+            name=self.name,
+            event_timestamp_utc=ev_dt,
+            ingested_at_utc=ing_dt,
+            trust_level=TrustLevel(self.trust_level),
+            epistemic_tag=EpistemicTag(self.epistemic_tag),
+            status=EvidenceStatus(self.status),
+            span=span,
+            envelope=envelope,
+            conflict_details=self.conflict_details,
+        )
+
 

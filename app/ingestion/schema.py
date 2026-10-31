@@ -89,15 +89,82 @@ class NormalizedSpan:
             "tool_call_id": self.tool_call_id,
             "tool_status": self.tool_status,
             "is_human_intervention": self.is_human_intervention,
+            "human_action_type": self.human_action_type,
+            "intervention_detection_method": self.intervention_detection_method,
             "cost_usd": round(self.cost_usd, 6),
             "cost_status": self.cost_status,
-            "epistemic_tag": self.epistemic_tag.value,
-            "trust_level": self.trust_level.value,
+            "epistemic_tag": self.epistemic_tag.value if hasattr(self.epistemic_tag, "value") else str(self.epistemic_tag),
+            "trust_level": self.trust_level.value if hasattr(self.trust_level, "value") else str(self.trust_level),
             "normalization_version": self.normalization_version,
             "unmapped_attributes": self.unmapped_attributes,
             "conflicts": self.conflicts,
-            "missing_fields": self.missing_fields
+            "missing_fields": self.missing_fields,
+            "raw_attributes": self.raw_attributes,
         }
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "NormalizedSpan":
+        """Reconstructs a NormalizedSpan from a serialized dictionary."""
+        st = d.get("start_time")
+        if isinstance(st, str):
+            start_time_dt = datetime.fromisoformat(st)
+        else:
+            start_time_dt = st
+
+        et = d.get("end_time")
+        if isinstance(et, str):
+            end_time_dt = datetime.fromisoformat(et)
+        else:
+            end_time_dt = et
+
+        ep_tag = d.get("epistemic_tag", EpistemicTag.OBSERVED)
+        if isinstance(ep_tag, str):
+            try:
+                ep_tag = EpistemicTag(ep_tag)
+            except ValueError:
+                ep_tag = EpistemicTag.OBSERVED
+
+        tr_lvl = d.get("trust_level", TrustLevel.T1)
+        if isinstance(tr_lvl, str):
+            try:
+                tr_lvl = TrustLevel(tr_lvl)
+            except ValueError:
+                tr_lvl = TrustLevel.T1
+
+        return cls(
+            span_id=d.get("span_id", ""),
+            trace_id=d.get("trace_id", ""),
+            name=d.get("name", ""),
+            span_kind=d.get("span_kind", "internal"),
+            start_time=start_time_dt,
+            end_time=end_time_dt,
+            duration_ms=float(d.get("duration_ms", 0.0)),
+            status_code=d.get("status_code", "UNSET"),
+            status_message=d.get("status_message"),
+            parent_span_id=d.get("parent_span_id"),
+            provider_name=d.get("provider_name"),
+            requested_model=d.get("requested_model"),
+            response_model=d.get("response_model"),
+            operation_name=d.get("operation_name"),
+            input_tokens=d.get("input_tokens"),
+            output_tokens=d.get("output_tokens"),
+            has_token_data=bool(d.get("has_token_data", False)),
+            tool_name=d.get("tool_name"),
+            tool_call_id=d.get("tool_call_id"),
+            tool_status=d.get("tool_status"),
+            is_human_intervention=bool(d.get("is_human_intervention", False)),
+            human_action_type=d.get("human_action_type"),
+            intervention_detection_method=d.get("intervention_detection_method"),
+            cost_usd=float(d.get("cost_usd", 0.0)),
+            cost_status=d.get("cost_status", "MEASURED"),
+            epistemic_tag=ep_tag,
+            trust_level=tr_lvl,
+            normalization_version=d.get("normalization_version", NormalizationVersion.V1_28_0.value),
+            unmapped_attributes=d.get("unmapped_attributes", {}) or {},
+            conflicts=d.get("conflicts", {}) or {},
+            missing_fields=d.get("missing_fields", []) or [],
+            raw_attributes=d.get("raw_attributes", {}) or {},
+        )
 
 @dataclass
 class NormalizedTrace:

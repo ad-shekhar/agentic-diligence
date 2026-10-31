@@ -435,7 +435,7 @@ def get_company_metrics(
         all_norm_spans = []
 
         for trace in traces:
-            # Convert DB Span rows → NormalizedSpan
+            # Convert DB Span rows â†’ NormalizedSpan
             norm_spans = []
             for sp in trace.spans:
                 ns = SchemaSpan(
@@ -584,33 +584,56 @@ def verify_bundle_endpoint(payload: Dict[str, Any] = Body(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 # ==============================================================================
-# Phase 6: Unified Evidence Ingestion & Verification Endpoints
+# Phase 6 & 7.1: Unified Evidence Ingestion & Verification Endpoints (Secured)
 # ==============================================================================
+
+from app.security.auth import AuthenticatedContext, get_authenticated_context
 
 @router.post("/evidence/ingest")
 def ingest_unified_evidence(
     payload: Dict[str, Any] = Body(...),
     source_type: Optional[str] = Query(None, description="Optional adapter hint: 'otlp', 'mcp', or 'browser'"),
-    company_id: Optional[str] = Query("default_target", description="Target company identifier"),
+    company_id: Optional[str] = Query(None, description="Target company identifier"),
     content_type: str = Query("application/json"),
+    auth_context: AuthenticatedContext = Depends(get_authenticated_context),
     db: Session = Depends(get_db)
 ):
     """
     Ingests telemetry evidence from OTLP, MCP, or Browser sources into the Unified Evidence Registry.
-    Computes cryptographic SHA-256 provenance digests and handles idempotency.
+    Protected by service-to-service API key authentication and strict tenant authorization.
+    Computes cryptographic SHA-256 provenance digests, enforces idempotency and durability.
     """
     from app.adapters.pipeline import default_pipeline
     import json
+
+    target_company = company_id or auth_context.company_id
+    if not target_company:
+        raise HTTPException(status_code=400, detail="Target company_id must be specified.")
+
+    if not auth_context.can_access_company(target_company, db):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Forbidden: Authenticated credential is not authorized for company '{target_company}'."
+        )
+
+    if not auth_context.has_scope("evidence:write"):
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: API key does not possess 'evidence:write' permission."
+        )
+
     try:
         raw_bytes = json.dumps(payload).encode("utf-8")
         receipt = default_pipeline.ingest_evidence(
             raw_bytes=raw_bytes,
             source_type=source_type,
-            company_id=company_id,
+            company_id=target_company,
             content_type=content_type,
             db=db,
         )
         return receipt.to_dict()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -618,17 +641,35 @@ def ingest_unified_evidence(
 @router.post("/evidence/verify")
 def verify_unified_claims(
     payload: Dict[str, Any] = Body(...),
+    auth_context: AuthenticatedContext = Depends(get_authenticated_context),
     db: Session = Depends(get_db)
 ):
     """
     Executes claim verification over multi-source correlated telemetry in the unified registry.
+    Protected by service-to-service API key authentication and strict tenant authorization.
     Returns explainable verdicts (VERIFIED, CONTRADICTED, INSUFFICIENT_EVIDENCE).
     """
     from app.adapters.pipeline import default_pipeline
     from app.epistemic.claims import ClaimSchema, ClaimDimension, ComparisonOperator
     from app.epistemic.tags import TrustLevel
+
+    target_company = payload.get("company_id") or auth_context.company_id
+    if not target_company:
+        raise HTTPException(status_code=400, detail="Target company_id must be specified.")
+
+    if not auth_context.can_access_company(target_company, db):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Forbidden: Authenticated credential is not authorized for company '{target_company}'."
+        )
+
+    if not auth_context.has_scope("evidence:read"):
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: API key does not possess 'evidence:read' permission."
+        )
+
     try:
-        company_id = payload.get("company_id", "default_target")
         raw_claims = payload.get("claims", [])
         min_sample_size = int(payload.get("min_sample_size", 15))
 
@@ -648,11 +689,13 @@ def verify_unified_claims(
 
         result = default_pipeline.verify_claims(
             claims=claims,
-            company_id=company_id,
+            company_id=target_company,
             min_sample_size=min_sample_size,
             db=db,
         )
         return result.to_dict()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -663,19 +706,44 @@ def list_evidence_records(
     trace_id: Optional[str] = Query(None),
     source_type: Optional[str] = Query(None),
     include_duplicates: bool = Query(False),
+    auth_context: AuthenticatedContext = Depends(get_authenticated_context),
+    db: Session = Depends(get_db)
 ):
-    """Lists registered evidence records matching filters."""
+    """
+    Lists registered evidence records matching filters.
+    Protected by service-to-service API key authentication and strict tenant authorization.
+    """
     from app.adapters.pipeline import default_pipeline
     from app.adapters.registry import SourceType
+
+    target_company = company_id or auth_context.company_id
+    if not target_company:
+        raise HTTPException(status_code=400, detail="Target company_id must be specified.")
+
+    if not auth_context.can_access_company(target_company, db):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Forbidden: Authenticated credential is not authorized for company '{target_company}'."
+        )
+
+    if not auth_context.has_scope("evidence:read"):
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: API key does not possess 'evidence:read' permission."
+        )
+
     try:
         st = SourceType(source_type) if source_type else None
         records = default_pipeline.registry.get_records(
-            company_id=company_id,
+            company_id=target_company,
             trace_id=trace_id,
             source_type=st,
             include_duplicates=include_duplicates,
+            db=db,
         )
         return [r.to_dict() for r in records]
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -683,12 +751,36 @@ def list_evidence_records(
 @router.get("/evidence/provenance")
 def get_provenance_envelopes(
     company_id: Optional[str] = Query(None),
+    auth_context: AuthenticatedContext = Depends(get_authenticated_context),
+    db: Session = Depends(get_db)
 ):
-    """Returns cryptographic provenance envelopes registered for diligence scope."""
+    """
+    Returns cryptographic provenance envelopes registered for diligence scope.
+    Protected by service-to-service API key authentication and strict tenant authorization.
+    """
     from app.adapters.pipeline import default_pipeline
+
+    target_company = company_id or auth_context.company_id
+    if not target_company:
+        raise HTTPException(status_code=400, detail="Target company_id must be specified.")
+
+    if not auth_context.can_access_company(target_company, db):
+        raise HTTPException(
+            status_code=403,
+            detail=f"Forbidden: Authenticated credential is not authorized for company '{target_company}'."
+        )
+
+    if not auth_context.has_scope("evidence:read"):
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: API key does not possess 'evidence:read' permission."
+        )
+
     try:
-        envelopes = default_pipeline.registry.get_provenance_envelopes(company_id=company_id)
+        envelopes = default_pipeline.registry.get_provenance_envelopes(company_id=target_company, db=db)
         return [e.to_dict() for e in envelopes]
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 

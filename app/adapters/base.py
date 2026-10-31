@@ -98,6 +98,48 @@ class ProvenanceEnvelope:
         canonical_bytes = self.to_canonical_json(pretty=False).encode("utf-8")
         return hashlib.sha256(canonical_bytes).hexdigest()
 
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "ProvenanceEnvelope":
+        """Reconstructs a ProvenanceEnvelope from a serialized dictionary."""
+        ingested_at = d.get("ingested_at_utc")
+        if isinstance(ingested_at, str):
+            ingested_at_dt = datetime.fromisoformat(ingested_at)
+        else:
+            ingested_at_dt = ingested_at or datetime.now(timezone.utc)
+
+        tr_lvl = d.get("epistemic_trust_level", TrustLevel.T1)
+        if isinstance(tr_lvl, str):
+            try:
+                tr_lvl = TrustLevel(tr_lvl)
+            except ValueError:
+                tr_lvl = TrustLevel.T1
+
+        caps = []
+        for c in d.get("capabilities", []):
+            if isinstance(c, AdapterCapability):
+                caps.append(c)
+            elif isinstance(c, str):
+                try:
+                    caps.append(AdapterCapability(c))
+                except ValueError:
+                    pass
+
+        return cls(
+            adapter_id=d.get("adapter_id", ""),
+            adapter_version=d.get("adapter_version", ""),
+            source_framework=d.get("source_framework", ""),
+            source_version=d.get("source_version", ""),
+            payload_sha256=d.get("payload_sha256", ""),
+            byte_size=int(d.get("byte_size", 0)),
+            content_type=d.get("content_type", "application/json"),
+            ingested_at_utc=ingested_at_dt,
+            epistemic_trust_level=tr_lvl,
+            capabilities=caps,
+            known_blind_spots=list(d.get("known_blind_spots", []) or []),
+            redacted_fields=list(d.get("redacted_fields", []) or []),
+            custom_metadata=dict(d.get("custom_metadata", {}) or {}),
+        )
+
 
 class BaseEvidenceAdapter(abc.ABC):
     """

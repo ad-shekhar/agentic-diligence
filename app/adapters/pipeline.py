@@ -1,5 +1,5 @@
 """
-Unified Evidence Ingestion & Verification Pipeline (Phase 6 — Milestone C).
+Unified Evidence Ingestion & Verification Pipeline (Phase 6 â€” Milestone C).
 
 Connects multi-source adapters (OTLP, MCP, Browser), the UnifiedEvidenceRegistry,
 and the EvidenceCorrelationEngine to the ClaimVerificationMatrix and DiligenceMetrics engines.
@@ -144,8 +144,8 @@ class UnifiedVerificationPipeline:
         Correlates multi-source records, computes metrics, and produces explainable verdicts.
         """
         effective_company_id = company_id or "default_target"
-        records = self.registry.get_records(company_id=effective_company_id, include_duplicates=False)
-        envelopes = self.registry.get_provenance_envelopes(company_id=effective_company_id)
+        records = self.registry.get_records(company_id=effective_company_id, include_duplicates=False, db=db)
+        envelopes = self.registry.get_provenance_envelopes(company_id=effective_company_id, db=db)
 
         now_iso = datetime.now(timezone.utc).isoformat()
 

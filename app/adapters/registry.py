@@ -1,5 +1,5 @@
 """
-Unified Evidence Registry (Phase 6 — Milestone A).
+Unified Evidence Registry (Phase 6 â€” Milestone A).
 
 Provides a unified interface for registering, indexing, storing, and retrieving
 multi-source telemetry evidence across OTLP, MCP, and WebExtension Browser adapters.
@@ -9,6 +9,7 @@ and non-destructive conflict and duplicate tracking.
 
 import hashlib
 import json
+import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
@@ -27,7 +28,8 @@ from app.adapters.browser import BrowserEvidenceAdapter
 from app.epistemic.tags import TrustLevel, EpistemicTag
 from app.ingestion.otlp_handler import IngestionError
 from app.ingestion.schema import NormalizedSpan
-from app.db.models import PayloadProvenance
+from app.db.models import PayloadProvenance, DurableEvidenceRecord
+from app.db.session import SessionLocal
 
 
 class SourceType(str, Enum):
@@ -143,10 +145,12 @@ class UnifiedEvidenceRegistry:
     """
     Central Evidence Registry for Agentic Diligence.
     Accepts, normalizes, indexes, and queries evidence from OTLP, MCP, and Browser sources.
-    Enforces non-destructive conflict logging and duplicate detection.
+    Enforces non-destructive conflict logging, persistent duplicate detection,
+    concurrency thread-safety, and SQLite durable persistence.
     """
 
     def __init__(self):
+        self._lock = threading.RLock()
         self._otlp_adapter = OtlpEvidenceAdapter()
         self._mcp_adapter = McpEvidenceAdapter()
         self._browser_adapter = BrowserEvidenceAdapter()
@@ -164,11 +168,12 @@ class UnifiedEvidenceRegistry:
 
     def clear(self) -> None:
         """Resets the in-memory registry (useful for isolated unit tests)."""
-        self._records_by_id.clear()
-        self._records_by_company.clear()
-        self._records_by_trace.clear()
-        self._envelopes_by_company.clear()
-        self._seen_spans.clear()
+        with self._lock:
+            self._records_by_id.clear()
+            self._records_by_company.clear()
+            self._records_by_trace.clear()
+            self._envelopes_by_company.clear()
+            self._seen_spans.clear()
 
     def detect_source_type(
         self,
@@ -222,131 +227,184 @@ class UnifiedEvidenceRegistry:
         db: Optional[Session] = None,
     ) -> IngestionReceipt:
         """
-        Ingests, normalizes, registers, and stores evidence records.
-        Preserves provenance digests and enforces idempotency and conflict logging.
+        Ingests, normalizes, registers, and durably stores evidence records.
+        Preserves provenance digests, enforces thread-safety, and guarantees
+        persistent duplicate detection across process restarts.
         """
-        effective_company_id = company_id or "default_target"
-        resolved_source_type: SourceType
+        with self._lock:
+            effective_company_id = company_id or "default_target"
+            resolved_source_type: SourceType
 
-        if isinstance(source_type, SourceType):
-            resolved_source_type = source_type
-        elif isinstance(source_type, str):
-            resolved_source_type = self.detect_source_type(raw_bytes, content_type, hint=source_type)
-        else:
-            resolved_source_type = self.detect_source_type(raw_bytes, content_type)
-
-        if resolved_source_type == SourceType.UNKNOWN:
-            raise IngestionError(
-                "Unrecognized evidence payload structure: cannot determine adapter. "
-                "Specify source_type explicitly ('otlp', 'mcp', 'browser')."
-            )
-
-        # 1. Route to designated adapter
-        adapter: BaseEvidenceAdapter
-        if resolved_source_type == SourceType.OTLP:
-            adapter = self._otlp_adapter
-        elif resolved_source_type == SourceType.MCP:
-            adapter = self._mcp_adapter
-        elif resolved_source_type == SourceType.BROWSER:
-            adapter = self._browser_adapter
-        else:
-            raise IngestionError(f"Unsupported source type: {resolved_source_type}")
-
-        # 2. Parse and normalize
-        envelope, spans = adapter.parse_and_normalize(
-            raw_bytes=raw_bytes,
-            content_type=content_type,
-            company_id=effective_company_id,
-            provenance_hash=provenance_hash,
-        )
-
-        # 3. Store provenance in DB if session provided
-        if db:
-            prov_rec = PayloadProvenance(
-                payload_hash=envelope.payload_sha256,
-                company_id=effective_company_id,
-                content_type=content_type,
-                byte_size=len(raw_bytes),
-                format=f"{resolved_source_type.value}_envelope",
-                normalization_version=spans[0].normalization_version if spans else "v1.28.0",
-                trace_count=len({s.trace_id for s in spans}),
-                span_count=len(spans),
-                status="SUCCESS",
-            )
-            db.add(prov_rec)
-            db.commit()
-
-        # Track in memory
-        self._envelopes_by_company.setdefault(effective_company_id, []).append(envelope)
-
-        ingested_at = datetime.now(timezone.utc)
-        duplicates_count = 0
-        conflicts_count = 0
-        trace_ids: Set[str] = set()
-
-        # 4. Index individual evidence records
-        for span in spans:
-            trace_ids.add(span.trace_id)
-            ev_id = compute_deterministic_evidence_id(
-                source_type=resolved_source_type,
-                payload_hash=envelope.payload_sha256,
-                trace_id=span.trace_id,
-                span_id=span.span_id,
-            )
-
-            span_key = (effective_company_id, resolved_source_type.value, span.trace_id, span.span_id)
-            is_dup = span_key in self._seen_spans
-            status = EvidenceStatus.VALID
-
-            if is_dup:
-                duplicates_count += 1
-                status = EvidenceStatus.DUPLICATE
-                if ev_id in self._records_by_id:
-                    ev_id = f"{ev_id}#dup-{duplicates_count}"
+            if isinstance(source_type, SourceType):
+                resolved_source_type = source_type
+            elif isinstance(source_type, str):
+                resolved_source_type = self.detect_source_type(raw_bytes, content_type, hint=source_type)
             else:
-                self._seen_spans[span_key] = ev_id
+                resolved_source_type = self.detect_source_type(raw_bytes, content_type)
 
-            # Incomplete status check (e.g. unknown tool call or uninstrumented interval)
-            if status != EvidenceStatus.DUPLICATE:
-                if span.epistemic_tag == EpistemicTag.UNKNOWN or span.tool_status == "UNKNOWN":
-                    status = EvidenceStatus.INCOMPLETE
+            if resolved_source_type == SourceType.UNKNOWN:
+                raise IngestionError(
+                    "Unrecognized evidence payload structure: cannot determine adapter. "
+                    "Specify source_type explicitly ('otlp', 'mcp', 'browser')."
+                )
 
-            record = EvidenceRecord(
-                evidence_id=ev_id,
-                source_type=resolved_source_type,
-                adapter_id=adapter.adapter_id,
-                adapter_version=adapter.adapter_version,
+            # 1. Route to designated adapter
+            adapter: BaseEvidenceAdapter
+            if resolved_source_type == SourceType.OTLP:
+                adapter = self._otlp_adapter
+            elif resolved_source_type == SourceType.MCP:
+                adapter = self._mcp_adapter
+            elif resolved_source_type == SourceType.BROWSER:
+                adapter = self._browser_adapter
+            else:
+                raise IngestionError(f"Unsupported source type: {resolved_source_type}")
+
+            # 2. Parse and normalize
+            envelope, spans = adapter.parse_and_normalize(
+                raw_bytes=raw_bytes,
+                content_type=content_type,
                 company_id=effective_company_id,
-                provenance_hash=envelope.payload_sha256,
-                trace_id=span.trace_id,
-                span_id=span.span_id,
-                parent_span_id=span.parent_span_id,
-                name=span.name,
-                event_timestamp_utc=span.start_time,
-                ingested_at_utc=ingested_at,
-                trust_level=span.trust_level,
-                epistemic_tag=span.epistemic_tag,
-                status=status,
-                span=span,
+                provenance_hash=provenance_hash,
+            )
+
+            # Track envelope in memory
+            self._envelopes_by_company.setdefault(effective_company_id, []).append(envelope)
+
+            ingested_at = datetime.now(timezone.utc)
+            duplicates_count = 0
+            conflicts_count = 0
+            trace_ids: Set[str] = set()
+            records_created: List[EvidenceRecord] = []
+
+            # 3. Index individual evidence records with persistent deduplication
+            for span in spans:
+                trace_ids.add(span.trace_id)
+                ev_id = compute_deterministic_evidence_id(
+                    source_type=resolved_source_type,
+                    payload_hash=envelope.payload_sha256,
+                    trace_id=span.trace_id,
+                    span_id=span.span_id,
+                )
+
+                span_key = (effective_company_id, resolved_source_type.value, span.trace_id, span.span_id)
+                is_dup = span_key in self._seen_spans
+
+                # If not seen in-memory, check DB for persistent duplicate detection across restarts
+                if not is_dup and db is not None:
+                    try:
+                        existing = db.query(DurableEvidenceRecord.evidence_id).filter(
+                            DurableEvidenceRecord.company_id == effective_company_id,
+                            DurableEvidenceRecord.source_type == resolved_source_type.value,
+                            DurableEvidenceRecord.trace_id == span.trace_id,
+                            DurableEvidenceRecord.span_id == span.span_id,
+                        ).first()
+                        if existing:
+                            is_dup = True
+                            self._seen_spans[span_key] = existing[0]
+                    except Exception:
+                        pass
+
+                status = EvidenceStatus.VALID
+
+                if is_dup:
+                    duplicates_count += 1
+                    status = EvidenceStatus.DUPLICATE
+                    exists_in_db = False
+                    if db is not None:
+                        try:
+                            exists_in_db = db.query(DurableEvidenceRecord.evidence_id).filter_by(evidence_id=ev_id).first() is not None
+                        except Exception:
+                            exists_in_db = False
+                    if ev_id in self._records_by_id or exists_in_db:
+                        ev_id = f"{ev_id}#dup-{duplicates_count}"
+                else:
+                    self._seen_spans[span_key] = ev_id
+
+                # Incomplete status check (e.g. unknown tool call or uninstrumented interval)
+                if status != EvidenceStatus.DUPLICATE:
+                    if span.epistemic_tag == EpistemicTag.UNKNOWN or span.tool_status == "UNKNOWN":
+                        status = EvidenceStatus.INCOMPLETE
+
+                record = EvidenceRecord(
+                    evidence_id=ev_id,
+                    source_type=resolved_source_type,
+                    adapter_id=adapter.adapter_id,
+                    adapter_version=adapter.adapter_version,
+                    company_id=effective_company_id,
+                    provenance_hash=envelope.payload_sha256,
+                    trace_id=span.trace_id,
+                    span_id=span.span_id,
+                    parent_span_id=span.parent_span_id,
+                    name=span.name,
+                    event_timestamp_utc=span.start_time,
+                    ingested_at_utc=ingested_at,
+                    trust_level=span.trust_level,
+                    epistemic_tag=span.epistemic_tag,
+                    status=status,
+                    span=span,
+                    envelope=envelope,
+                )
+
+                self._records_by_id[ev_id] = record
+                self._records_by_company.setdefault(effective_company_id, []).append(ev_id)
+                self._records_by_trace.setdefault(span.trace_id, []).append(ev_id)
+                records_created.append(record)
+
+            # 4. Atomic SQLite persistence for provenance and durable records
+            if db is not None:
+                try:
+                    prov_rec = PayloadProvenance(
+                        payload_hash=envelope.payload_sha256,
+                        company_id=effective_company_id,
+                        content_type=content_type,
+                        byte_size=len(raw_bytes),
+                        format=f"{resolved_source_type.value}_envelope",
+                        normalization_version=spans[0].normalization_version if spans else "v1.28.0",
+                        trace_count=len({s.trace_id for s in spans}),
+                        span_count=len(spans),
+                        status="SUCCESS",
+                    )
+                    db.add(prov_rec)
+
+                    for r in records_created:
+                        durable_rec = DurableEvidenceRecord(
+                            evidence_id=r.evidence_id,
+                            company_id=effective_company_id,
+                            source_type=resolved_source_type.value,
+                            adapter_id=adapter.adapter_id,
+                            adapter_version=adapter.adapter_version,
+                            provenance_hash=envelope.payload_sha256,
+                            trace_id=r.trace_id,
+                            span_id=r.span_id,
+                            parent_span_id=r.parent_span_id,
+                            name=r.name,
+                            event_timestamp_utc=r.event_timestamp_utc,
+                            ingested_at_utc=r.ingested_at_utc,
+                            trust_level=r.trust_level.value if hasattr(r.trust_level, "value") else str(r.trust_level),
+                            epistemic_tag=r.epistemic_tag.value if hasattr(r.epistemic_tag, "value") else str(r.epistemic_tag),
+                            status=r.status.value if hasattr(r.status, "value") else str(r.status),
+                            conflict_details=r.conflict_details,
+                            span_json=r.span.to_dict(),
+                            envelope_json=envelope.to_dict(),
+                        )
+                        db.merge(durable_rec)
+                    db.commit()
+                except Exception as e:
+                    db.rollback()
+                    raise IngestionError(f"Database persistence failure: {e}") from e
+
+            return IngestionReceipt(
+                status="SUCCESS",
+                source_type=resolved_source_type,
+                payload_hash=envelope.payload_sha256,
+                byte_size=len(raw_bytes),
+                total_spans_ingested=len(spans),
+                duplicates_detected=duplicates_count,
+                conflicts_detected=conflicts_count,
+                trace_ids=sorted(list(trace_ids)),
+                errors=[],
                 envelope=envelope,
             )
-
-            self._records_by_id[ev_id] = record
-            self._records_by_company.setdefault(effective_company_id, []).append(ev_id)
-            self._records_by_trace.setdefault(span.trace_id, []).append(ev_id)
-
-        return IngestionReceipt(
-            status="SUCCESS",
-            source_type=resolved_source_type,
-            payload_hash=envelope.payload_sha256,
-            byte_size=len(raw_bytes),
-            total_spans_ingested=len(spans),
-            duplicates_detected=duplicates_count,
-            conflicts_detected=conflicts_count,
-            trace_ids=sorted(list(trace_ids)),
-            errors=[],
-            envelope=envelope,
-        )
 
     def get_records(
         self,
@@ -355,52 +413,147 @@ class UnifiedEvidenceRegistry:
         source_type: Optional[SourceType] = None,
         include_duplicates: bool = False,
         sort_by_time: bool = False,
+        db: Optional[Session] = None,
     ) -> List[EvidenceRecord]:
-        """Queries registered evidence records matching filters."""
-        if trace_id:
-            ids = self._records_by_trace.get(trace_id, [])
-        elif company_id:
-            ids = self._records_by_company.get(company_id, [])
-        else:
-            ids = list(self._records_by_id.keys())
+        """
+        Queries registered evidence records matching filters.
+        Hydrates from durable SQLite storage if cache is cold or db is supplied.
+        """
+        with self._lock:
+            # Check if cold start hydration is required
+            target_company_id = company_id
+            needs_db_hydration = db is not None or (target_company_id and not self._records_by_company.get(target_company_id)) or (not target_company_id and not self._records_by_id)
 
-        results: List[EvidenceRecord] = []
-        for eid in ids:
-            rec = self._records_by_id.get(eid)
-            if not rec:
-                continue
-            if company_id and rec.company_id != company_id:
-                continue
-            if source_type and rec.source_type != source_type:
-                continue
-            if not include_duplicates and rec.status == EvidenceStatus.DUPLICATE:
-                continue
-            results.append(rec)
+            if needs_db_hydration:
+                target_db = db
+                owns_session = False
+                if target_db is None:
+                    try:
+                        target_db = SessionLocal()
+                        owns_session = True
+                    except Exception:
+                        target_db = None
 
-        if sort_by_time:
-            results.sort(key=lambda r: r.event_timestamp_utc)
-        return results
+                if target_db is not None:
+                    try:
+                        query = target_db.query(DurableEvidenceRecord)
+                        if company_id:
+                            query = query.filter(DurableEvidenceRecord.company_id == company_id)
+                        if trace_id:
+                            query = query.filter(DurableEvidenceRecord.trace_id == trace_id)
+                        if source_type:
+                            st_val = source_type.value if isinstance(source_type, SourceType) else str(source_type)
+                            query = query.filter(DurableEvidenceRecord.source_type == st_val)
+                        if not include_duplicates:
+                            query = query.filter(DurableEvidenceRecord.status != EvidenceStatus.DUPLICATE.value)
 
-    def get_provenance_envelopes(self, company_id: Optional[str] = None) -> List[ProvenanceEnvelope]:
-        """Returns all registered provenance envelopes for a company."""
-        if company_id:
-            return list(self._envelopes_by_company.get(company_id, []))
-        all_envs = []
-        for env_list in self._envelopes_by_company.values():
-            all_envs.extend(env_list)
-        return all_envs
+                        db_rows = query.all()
+                        for row in db_rows:
+                            if row.evidence_id not in self._records_by_id:
+                                rec = row.to_evidence_record()
+                                self._records_by_id[rec.evidence_id] = rec
+                                self._records_by_company.setdefault(rec.company_id, []).append(rec.evidence_id)
+                                self._records_by_trace.setdefault(rec.trace_id, []).append(rec.evidence_id)
+                                span_key = (rec.company_id, rec.source_type.value, rec.trace_id, rec.span_id)
+                                self._seen_spans[span_key] = rec.evidence_id
+                    except Exception:
+                        pass
+                    finally:
+                        if owns_session:
+                            target_db.close()
+
+            if trace_id:
+                ids = self._records_by_trace.get(trace_id, [])
+            elif company_id:
+                ids = self._records_by_company.get(company_id, [])
+            else:
+                ids = list(self._records_by_id.keys())
+
+            results: List[EvidenceRecord] = []
+            for eid in ids:
+                rec = self._records_by_id.get(eid)
+                if not rec:
+                    continue
+                if company_id and rec.company_id != company_id:
+                    continue
+                if source_type and rec.source_type != source_type:
+                    continue
+                if not include_duplicates and rec.status == EvidenceStatus.DUPLICATE:
+                    continue
+                results.append(rec)
+
+            if sort_by_time:
+                results.sort(key=lambda r: r.event_timestamp_utc)
+            return results
+
+    def get_provenance_envelopes(
+        self,
+        company_id: Optional[str] = None,
+        db: Optional[Session] = None,
+    ) -> List[ProvenanceEnvelope]:
+        """
+        Returns all registered provenance envelopes for a company.
+        Hydrates from durable SQLite storage if cache is cold.
+        """
+        with self._lock:
+            cached_envs = self._envelopes_by_company.get(company_id, []) if company_id else [e for sublist in self._envelopes_by_company.values() for e in sublist]
+            if cached_envs:
+                return list(cached_envs)
+
+            target_db = db
+            owns_session = False
+            if target_db is None:
+                try:
+                    target_db = SessionLocal()
+                    owns_session = True
+                except Exception:
+                    target_db = None
+
+            if target_db is not None:
+                try:
+                    query = target_db.query(
+                        DurableEvidenceRecord.envelope_json,
+                        DurableEvidenceRecord.provenance_hash,
+                        DurableEvidenceRecord.company_id
+                    )
+                    if company_id:
+                        query = query.filter(DurableEvidenceRecord.company_id == company_id)
+                    rows = query.all()
+                    seen_hashes = set()
+                    hydrated_envs = []
+                    for env_json, p_hash, cid in rows:
+                        if p_hash not in seen_hashes:
+                            seen_hashes.add(p_hash)
+                            env = ProvenanceEnvelope.from_dict(env_json)
+                            hydrated_envs.append(env)
+                            self._envelopes_by_company.setdefault(cid, []).append(env)
+                    return hydrated_envs
+                except Exception:
+                    pass
+                finally:
+                    if owns_session:
+                        target_db.close()
+
+            if company_id:
+                return list(self._envelopes_by_company.get(company_id, []))
+            all_envs = []
+            for env_list in self._envelopes_by_company.values():
+                all_envs.extend(env_list)
+            return all_envs
 
     def get_spans_by_trace(
         self,
         company_id: Optional[str] = None,
-        include_duplicates: bool = False
+        include_duplicates: bool = False,
+        db: Optional[Session] = None,
     ) -> Dict[str, List[NormalizedSpan]]:
         """Groups normalized spans by trace_id for downstream task segmentation."""
-        records = self.get_records(company_id=company_id, include_duplicates=include_duplicates)
-        traces_map: Dict[str, List[NormalizedSpan]] = {}
-        for r in records:
-            traces_map.setdefault(r.trace_id, []).append(r.span)
-        return traces_map
+        with self._lock:
+            records = self.get_records(company_id=company_id, include_duplicates=include_duplicates, db=db)
+            traces_map: Dict[str, List[NormalizedSpan]] = {}
+            for r in records:
+                traces_map.setdefault(r.trace_id, []).append(r.span)
+            return traces_map
 
 
 # Singleton default registry instance

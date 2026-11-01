@@ -1,6 +1,6 @@
 import os
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from fastapi import APIRouter, Depends, HTTPException, Body, Query, UploadFile, File, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
@@ -181,6 +181,61 @@ def get_project_activity_route(project_id: str, db: Session = Depends(get_db)):
     if not project:
         raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
     return get_project_activities(db, project.id)
+
+
+@router.post("/projects/{project_id}/ingest")
+async def ingest_project_telemetry_route(
+    project_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Ingests telemetry traces from an uploaded file (.json, .jsonl) or direct JSON body.
+    Binds data to project scope, checks for duplicate hashes, and records an IngestionJob.
+    """
+    from app.ingestion.service import ingest_project_telemetry
+    import json
+    try:
+        content_type = request.headers.get("content-type", "").lower()
+        if "multipart/form-data" in content_type:
+            form = await request.form()
+            file_field = form.get("file")
+            if not file_field:
+                raise HTTPException(status_code=400, detail="Missing 'file' field in multipart form upload.")
+            raw_bytes = await file_field.read()
+            filename = getattr(file_field, "filename", "telemetry.json") or "telemetry.json"
+        else:
+            raw_bytes = await request.body()
+            filename = "direct_payload.json"
+
+        if not raw_bytes:
+            raise HTTPException(status_code=400, detail="Must provide either an uploaded file or JSON payload.")
+
+        result = ingest_project_telemetry(
+            db=db,
+            project_identifier=project_id,
+            raw_bytes=raw_bytes,
+            filename=filename
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/projects/{project_id}/ingestion-jobs")
+def get_project_ingestion_jobs_route(project_id: str, db: Session = Depends(get_db)):
+    """Retrieves ingestion job history for a project."""
+    from app.ingestion.service import list_project_ingestion_jobs
+    return list_project_ingestion_jobs(db, project_id)
+
+@router.get("/projects/{project_id}/evidence")
+def get_project_evidence_route(project_id: str, db: Session = Depends(get_db)):
+    """Returns evidence records and cryptographic provenance digests for a project."""
+    from app.ingestion.service import list_project_evidence_records
+    return list_project_evidence_records(db, project_id)
 
 
 

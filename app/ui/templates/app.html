@@ -261,17 +261,33 @@
   <div class="modal-backdrop" id="modal-upload">
     <div class="modal-box">
       <div class="modal-header">
-        <h3>Ingest OpenTelemetry GenAI Traces</h3>
+        <h3>Ingest OpenTelemetry GenAI Telemetry</h3>
         <button class="btn btn-outline btn-sm" id="btn-close-upload-modal">✕</button>
       </div>
       <div class="modal-body">
-        <p style="font-size: 0.85rem; margin-bottom: var(--space-4);">
-          Paste raw OpenTelemetry JSON payload (GenAI semantic conventions v1.28.0) or Claude MCP observer traces. Every payload is cryptographically hashed with SHA-256 for chain of custody.
+        <p style="font-size: 0.85rem; margin-bottom: var(--space-4); color: var(--text-secondary);">
+          Upload standard OpenTelemetry JSON/JSONL exports or Claude MCP observer traces. Every payload is cryptographically hashed with SHA-256 for audit-grade provenance.
         </p>
-        <div class="form-group">
-          <label class="form-label" for="textarea-traces">Trace Payload (JSON):</label>
-          <textarea id="textarea-traces" class="form-control font-mono" rows="9" style="font-size: 0.775rem;" placeholder='{"resourceSpans": [{"scopeSpans": [{"spans": [...]}]}]}'></textarea>
+
+        <!-- Drag & Drop Zone -->
+        <div id="dropzone-upload" style="border: 2px dashed var(--border-default); border-radius: var(--radius-md); padding: var(--space-6); text-align: center; cursor: pointer; transition: all var(--transition-fast); background: var(--bg-surface-2); margin-bottom: var(--space-4);">
+          <input type="file" id="file-input-upload" accept=".json,.jsonl" style="display: none;">
+          <div style="font-size: 1.75rem; margin-bottom: var(--space-2); color: var(--color-primary);">↑</div>
+          <div style="font-weight: 600; font-size: 0.9rem; margin-bottom: 4px;">Choose a file or drag & drop here</div>
+          <div style="font-size: 0.775rem; color: var(--text-muted);">Supports .json and .jsonl OpenTelemetry trace payloads up to 25 MB</div>
+          <div id="dropzone-file-name" style="margin-top: var(--space-3); font-size: 0.825rem; font-family: var(--font-mono); color: var(--color-accent); font-weight: 600; display: none;"></div>
         </div>
+
+        <div style="display: flex; align-items: center; gap: var(--space-3); margin-bottom: var(--space-3);">
+          <span style="height: 1px; flex: 1; background: var(--border-default);"></span>
+          <span style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">or paste raw JSON</span>
+          <span style="height: 1px; flex: 1; background: var(--border-default);"></span>
+        </div>
+
+        <div class="form-group" style="margin-bottom: var(--space-3);">
+          <textarea id="textarea-traces" class="form-control font-mono" rows="6" style="font-size: 0.775rem;" placeholder='{"resourceSpans": [{"scopeSpans": [{"spans": [...]}]}]}'></textarea>
+        </div>
+
         <div id="upload-feedback" style="display: none; padding: var(--space-3); border-radius: var(--radius-md); font-size: 0.8rem;"></div>
       </div>
       <div class="modal-footer">

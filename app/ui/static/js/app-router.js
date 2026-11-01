@@ -1224,18 +1224,74 @@ function renderAIBOMView(container, compId) {
 // ==============================================================================
 // VIEW CONTROLLER 10: EVIDENCE & PROVENANCE GRAPH (/app/projects/{id}/evidence)
 // ==============================================================================
-function renderEvidenceView(container, compId) {
+async function renderEvidenceView(container, compId) {
   const p = currentPackageData || {};
   const records = p.evidence_records || [];
 
   container.innerHTML = `
-    <div style="margin-bottom: var(--space-6);">
-      <h1 style="font-size: 1.75rem; margin-bottom: var(--space-1);">Proof & Evidence Graph</h1>
-      <p style="margin: 0; color: var(--text-secondary);">Verifiable chain of custody connecting diligence verdicts directly to raw trace IDs and SHA-256 digests.</p>
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-6);">
+      <div>
+        <h1 style="font-size: 1.75rem; margin-bottom: var(--space-1);">Proof & Evidence Graph</h1>
+        <p style="margin: 0; color: var(--text-secondary);">Verifiable chain of custody connecting diligence verdicts directly to raw trace IDs, OpenTelemetry spans, and SHA-256 digests.</p>
+      </div>
+      <button class="btn btn-primary" id="btn-evidence-open-upload">
+        <span>↑</span> Ingest Evidence / Traces
+      </button>
     </div>
 
+    <div class="metric-grid" style="margin-bottom: var(--space-6);" id="evidence-kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Anchored Traces</div>
+        <div class="kpi-value font-mono" id="ev-kpi-traces">--</div>
+        <div class="kpi-sub">Total validated telemetry traces</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Normalized Spans</div>
+        <div class="kpi-value font-mono" id="ev-kpi-spans">--</div>
+        <div class="kpi-sub">OpenTelemetry GenAI conventions v1.28</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Evidence Records</div>
+        <div class="kpi-value font-mono">${records.length}</div>
+        <div class="kpi-sub">Claim verification data points</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Provenance Digests</div>
+        <div class="kpi-value font-mono" id="ev-kpi-digests">--</div>
+        <div class="kpi-sub">SHA-256 verified payloads</div>
+      </div>
+    </div>
+
+    <!-- Ingestion Audit Log -->
+    <div class="panel-card" style="margin-bottom: var(--space-6);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+        <div>
+          <h3 style="margin-bottom: 2px;">Telemetry Ingestion History</h3>
+          <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">Cryptographic batch ingestion log with duplicate detection and SHA-256 fingerprints.</p>
+        </div>
+      </div>
+      <div class="table-container">
+        <table class="data-table" id="table-ingestion-jobs">
+          <thead>
+            <tr>
+              <th>File / Source</th>
+              <th>Size</th>
+              <th>SHA-256 Digest</th>
+              <th>Status</th>
+              <th>Spans</th>
+              <th>Ingested At</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-ingestion-jobs">
+            <tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-muted);">Loading ingestion history...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Claim Evidence Records -->
     <div class="panel-card">
-      <h3 style="margin-bottom: var(--space-3);">Auditable Evidence Records</h3>
+      <h3 style="margin-bottom: var(--space-3);">Auditable Claim Evidence Records</h3>
       <div class="table-container">
         <table class="data-table">
           <thead>
@@ -1249,7 +1305,7 @@ function renderEvidenceView(container, compId) {
             </tr>
           </thead>
           <tbody>
-            ${records.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">No evidence records anchored.</td></tr>' :
+            ${records.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">No evidence records anchored. Ingest traces to run verification engines.</td></tr>' :
               records.map(r => `
                 <tr>
                   <td class="font-mono"><strong>${r.record_id}</strong></td>
@@ -1266,6 +1322,66 @@ function renderEvidenceView(container, compId) {
       </div>
     </div>
   `;
+
+  // Wire Ingest Evidence button
+  const uploadBtn = document.getElementById("btn-evidence-open-upload");
+  if (uploadBtn) {
+    uploadBtn.addEventListener("click", () => {
+      const modal = document.getElementById("modal-upload");
+      if (modal) modal.classList.add("open");
+    });
+  }
+
+  // Fetch real evidence stats and ingestion jobs
+  try {
+    const [evRes, jobsRes] = await Promise.all([
+      fetch(`/api/v1/projects/${compId}/evidence`),
+      fetch(`/api/v1/projects/${compId}/ingestion-jobs`)
+    ]);
+
+    if (evRes.ok) {
+      const evData = await evRes.json();
+      const traceElem = document.getElementById("ev-kpi-traces");
+      const spanElem = document.getElementById("ev-kpi-spans");
+      const digestElem = document.getElementById("ev-kpi-digests");
+      if (traceElem) traceElem.innerText = evData.total_traces ?? 0;
+      if (spanElem) spanElem.innerText = evData.total_spans ?? 0;
+      if (digestElem) digestElem.innerText = (evData.provenance_digests || []).length;
+    }
+
+    if (jobsRes.ok) {
+      const jobs = await jobsRes.json();
+      const tbody = document.getElementById("tbody-ingestion-jobs");
+      if (tbody) {
+        if (!jobs || jobs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: var(--text-muted);">No telemetry files uploaded yet. Click "Ingest Evidence / Traces" above.</td></tr>';
+        } else {
+          tbody.innerHTML = jobs.map(j => {
+            let statusBadge = `<span class="badge badge-success">${j.status}</span>`;
+            if (j.status === "FAILED") statusBadge = `<span class="badge badge-danger">${j.status}</span>`;
+            else if (j.status === "DUPLICATE") statusBadge = `<span class="badge badge-warning" title="${j.error_message || ''}">DUPLICATE</span>`;
+            
+            const sizeKb = j.file_size_bytes ? (j.file_size_bytes / 1024).toFixed(1) + " KB" : "--";
+            const dateStr = j.created_at ? new Date(j.created_at).toLocaleString() : "--";
+            const hashShort = j.payload_hash ? j.payload_hash.substring(0, 16) + "..." : "--";
+
+            return `
+              <tr>
+                <td><strong>${j.filename || "payload.json"}</strong></td>
+                <td class="font-mono" style="font-size: 0.8rem;">${sizeKb}</td>
+                <td class="font-mono" style="font-size: 0.75rem; color: var(--text-muted);" title="${j.payload_hash || ''}">${hashShort}</td>
+                <td>${statusBadge}</td>
+                <td class="font-mono">${j.spans_count || 0}</td>
+                <td style="font-size: 0.8rem; color: var(--text-secondary);">${dateStr}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load evidence details:", err);
+  }
 }
 
 // ==============================================================================
@@ -1640,6 +1756,11 @@ function setupUploadModal() {
   const submitBtn = document.getElementById("btn-submit-upload");
   const textarea = document.getElementById("textarea-traces");
   const feedback = document.getElementById("upload-feedback");
+  const dropzone = document.getElementById("dropzone-upload");
+  const fileInput = document.getElementById("file-input-upload");
+  const fileNameDisplay = document.getElementById("dropzone-file-name");
+
+  let selectedFile = null;
 
   if (!modal) return;
 
@@ -1650,42 +1771,113 @@ function setupUploadModal() {
     });
   }
 
-  const close = () => modal.classList.remove("open");
+  const close = () => {
+    modal.classList.remove("open");
+    selectedFile = null;
+    if (fileInput) fileInput.value = "";
+    if (fileNameDisplay) {
+      fileNameDisplay.style.display = "none";
+      fileNameDisplay.innerText = "";
+    }
+  };
   if (closeBtn) closeBtn.addEventListener("click", close);
   if (cancelBtn) cancelBtn.addEventListener("click", close);
 
+  // Drag and Drop handlers
+  if (dropzone && fileInput) {
+    dropzone.addEventListener("click", () => fileInput.click());
+
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = "var(--color-primary)";
+      dropzone.style.background = "var(--bg-surface-3)";
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.style.borderColor = "var(--border-default)";
+      dropzone.style.background = "var(--bg-surface-2)";
+    });
+
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = "var(--border-default)";
+      dropzone.style.background = "var(--bg-surface-2)";
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFileSelect(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files && fileInput.files.length > 0) {
+        handleFileSelect(fileInput.files[0]);
+      }
+    });
+  }
+
+  function handleFileSelect(file) {
+    selectedFile = file;
+    if (fileNameDisplay) {
+      const sizeKb = (file.size / 1024).toFixed(1);
+      fileNameDisplay.innerText = `Selected: ${file.name} (${sizeKb} KB)`;
+      fileNameDisplay.style.display = "block";
+    }
+    if (textarea) textarea.value = "";
+  }
+
   if (submitBtn) {
     submitBtn.addEventListener("click", async () => {
-      const rawText = textarea.value.trim();
-      if (!rawText) {
-        alert("Please paste a valid OpenTelemetry JSON payload.");
+      const rawText = textarea ? textarea.value.trim() : "";
+      if (!selectedFile && !rawText) {
+        alert("Please choose a JSON/JSONL telemetry file or paste raw JSON trace payload.");
         return;
       }
 
-      submitBtn.innerText = "Ingesting...";
+      const targetId = currentCompanyId || "default";
+      const ingestUrl = `/api/v1/projects/${targetId}/ingest`;
+
+      submitBtn.innerText = "Ingesting & Verifying...";
       submitBtn.disabled = true;
+      if (feedback) feedback.style.display = "none";
 
       try {
-        const parsed = JSON.parse(rawText);
-        const url = `/v1/traces${currentCompanyId ? '?company_id=' + currentCompanyId : ''}`;
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(parsed)
-        });
+        let res;
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append("file", selectedFile);
+          res = await fetch(ingestUrl, {
+            method: "POST",
+            body: formData
+          });
+        } else {
+          let parsed;
+          try {
+            parsed = JSON.parse(rawText);
+          } catch (e) {
+            throw new Error("Invalid JSON: Please ensure pasted text is valid JSON syntax.");
+          }
+          res = await fetch(ingestUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(parsed)
+          });
+        }
 
         const data = await res.json();
         if (res.ok) {
-          showToast(`Ingestion Success! ${data.spans_count || 1} spans anchored.`, "success");
+          if (data.status === "DUPLICATE") {
+            showToast(`Duplicate Payload: SHA-256 fingerprint already indexed (${data.payload_hash.substring(0, 8)}...).`, "warning");
+          } else {
+            showToast(`Ingestion Success! Ingested ${data.spans_count || 1} spans across ${data.traces_count || 1} traces.`, "success");
+          }
           close();
-          textarea.value = "";
+          if (textarea) textarea.value = "";
           await loadCompaniesList();
           if (currentCompanyId) {
             currentPackageData = null;
             handleRoute(window.location.pathname);
           }
         } else {
-          throw new Error(data.error || "Ingestion rejected by server");
+          throw new Error(data.detail || data.error || "Ingestion rejected by server");
         }
       } catch (err) {
         if (feedback) {

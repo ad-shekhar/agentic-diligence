@@ -148,6 +148,23 @@ def assemble_company_evidence(
     return evidence_by_dimension, scope, trace_payload_hashes, metrics
 
 
+def _parse_claim_target_value(val_str: Any, dimension: ClaimDimension) -> float:
+    if val_str is None:
+        return 3500.0 if dimension == ClaimDimension.PROVIDER_SPREAD else 0.0
+    if isinstance(val_str, (int, float)):
+        return float(val_str)
+    import re
+    m = re.search(r"[-+]?\d*\.?\d+", str(val_str))
+    if m:
+        try:
+            return float(m.group(0))
+        except ValueError:
+            pass
+    if dimension == ClaimDimension.PROVIDER_SPREAD:
+        return 3500.0
+    return 0.0
+
+
 def load_company_claims(db: Session, company_id: str) -> List[ClaimSchema]:
     """
     Loads company claims from the database, or generates a standard diligence claim battery.
@@ -170,7 +187,7 @@ def load_company_claims(db: Session, company_id: str) -> List[ClaimSchema]:
                 dimension=dim,
                 stated_claim_text=c.claim_text or "Vendor runtime assertion",
                 target_operator=ComparisonOperator.LESS_EQUAL if dim in (ClaimDimension.UNIT_COST, ClaimDimension.RELIABILITY) else ComparisonOperator.GREATER_EQUAL,
-                target_value=float(c.target_value or 0.0),
+                target_value=_parse_claim_target_value(c.target_value, dim),
                 unit="%" if dim in (ClaimDimension.AUTONOMY, ClaimDimension.RELIABILITY) else ("USD" if dim == ClaimDimension.UNIT_COST else ""),
                 source_document=c.source or "Pitch Deck / Vendor SLA"
             ))
@@ -313,7 +330,7 @@ def compile_diligence_bundle_on_disk(
     # 3. Raw traces summary
     traces = db.query(Trace).filter(Trace.company_id == company_id).all()
     traces_summary = [
-        {"trace_id": t.id, "name": t.name, "span_count": len(t.spans), "is_error": t.is_error}
+        {"trace_id": t.id, "name": t.name, "span_count": len(t.spans), "is_error": (t.status_code == "ERROR")}
         for t in traces
     ]
     raw_traces_path = os.path.join(evidence_dir, "traces.json")

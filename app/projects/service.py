@@ -278,3 +278,4 @@ def get_project_activities(db: Session, project_id: str) -> List[Dict[str, Any]]
         }
         for a in acts
     ]
+

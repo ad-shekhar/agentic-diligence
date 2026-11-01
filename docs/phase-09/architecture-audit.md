@@ -175,3 +175,4 @@ erDiagram
 - **Milestone 9.6:** Report Generation (Persisted assessment snapshots, markdown/PDF/JSON exports).
 - **Milestone 9.7:** Frontend Product Integration (Fluid workspace navigation, loading/empty/error states).
 - **Milestone 9.8:** End-to-End QA, Regression Verification & Release Documentation.
+

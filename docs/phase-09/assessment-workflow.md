@@ -72,3 +72,4 @@ Each engine is executed inside a `try/except` guard:
 - Subsequent independent engines continue running.
 - The parent assessment status is marked as `PARTIALLY_COMPLETED`, and the limitations are explicitly disclosed in the findings and report.
 - Absence of evidence is tagged as `[UNKNOWN]`, never converted into a synthetic success.
+

@@ -45,3 +45,4 @@ sequenceDiagram
 2. **Path Traversal & Safe Filenames:** Uploaded filenames are sanitized (`os.path.basename` + strict regex `[a-zA-Z0-9_.-]`), preventing directory traversal (`../`).
 3. **Hermetic Memory Containment:** Maximum batch size enforced at 25MB; streaming chunk parser prevents denial-of-service via unbounded payloads.
 4. **Credential Scrubbing:** Pre-ingestion sanitizer scrubs incoming Authorization tokens, `sk-...` API keys, and private tokens from span attributes.
+

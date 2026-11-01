@@ -153,3 +153,4 @@ class ProjectActivity(Base):
 
     project = relationship("Project", back_populates="activities")
 ```
+

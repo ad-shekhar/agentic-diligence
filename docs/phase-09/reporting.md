@@ -36,3 +36,4 @@ Every generated due diligence report contains 12 standardized sections:
 10. **Defensibility & Moat Analysis:** Scaffolding depth vs. commodity prompt wrapper analysis, cloning effort estimate.
 11. **Economic Stress Simulator:** Volume surge and token inflation impact projections.
 12. **Limitations & Action Plan:** 100-day engineering remediation roadmap.
+

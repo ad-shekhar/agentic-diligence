@@ -77,3 +77,4 @@ def test_onboarding_custom_target_path(client, db: Session):
     assert pkg["company"]["id"] == comp_id
     assert pkg["interventions"]["total_traces"] == 0
     assert pkg["economics"]["total_tasks"] == 0
+

@@ -23,3 +23,4 @@
 - Epistemic verdicts (`VERIFIED`, `CONTRADICTED`, `INSUFFICIENT_EVIDENCE`) must remain mathematically bounded.
 - Absence of telemetry evidence must never be converted into a successful verdict.
 - Every finding must preserve an evidence link to supporting traces, spans, or cryptographic hashes.
+

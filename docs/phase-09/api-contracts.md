@@ -138,3 +138,4 @@ Downloads report in requested format:
 - `?format=pdf`: PDF report file.
 - `?format=json`: Standardized diligence package JSON.
 - `?format=zip`: Verifiable diligence bundle with `manifest.json`.
+

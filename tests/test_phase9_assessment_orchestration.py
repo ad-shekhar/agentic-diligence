@@ -223,3 +223,4 @@ def test_findings_filtering(client, db: Session):
     assert auto_res.status_code == 200
     for f in auto_res.json():
         assert f["engine_key"] == "autonomy"
+

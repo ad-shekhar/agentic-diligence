@@ -68,14 +68,134 @@ def list_companies(db: Session = Depends(get_db)):
     return results
 
 
+# ==============================================================================
+# PHASE 9: PROJECT LIFECYCLE MANAGEMENT ENDPOINTS
+# ==============================================================================
+
+@router.post("/projects", status_code=201)
+def create_project_route(payload: Dict[str, Any] = Body(...), db: Session = Depends(get_db)):
+    """Creates a new diligence project for a target system."""
+    try:
+        from app.projects.service import create_project
+        name = payload.get("name")
+        target_name = payload.get("target_name") or payload.get("target_system") or name
+        if not name:
+            raise HTTPException(status_code=400, detail="Project 'name' is required.")
+        project = create_project(
+            db=db,
+            name=name,
+            target_name=target_name,
+            target_system=payload.get("target_system"),
+            target_type=payload.get("target_type", "autonomous_agent"),
+            framework=payload.get("framework"),
+            description=payload.get("description"),
+            assessment_scope=payload.get("assessment_scope"),
+            evaluation_objective=payload.get("evaluation_objective"),
+            tenant_id=payload.get("tenant_id")
+        )
+        return {
+            "id": project.id,
+            "company_id": project.company_id,
+            "name": project.name,
+            "target_system": project.target_system,
+            "status": project.status,
+            "created_at": project.created_at.isoformat() if project.created_at else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/projects")
+def list_projects_route(
+    status: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Lists all diligence projects in the workspace."""
+    from app.projects.service import list_projects
+    return list_projects(db, status=status, search=search)
+
+@router.get("/projects/{project_id}")
+def get_project_route(project_id: str, db: Session = Depends(get_db)):
+    """Retrieves single project details with target metadata and stats."""
+    from app.projects.service import get_project_by_id_or_company
+    project = get_project_by_id_or_company(db, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
+    
+    comp = project.company
+    trace_count = len(comp.traces) if comp and comp.traces else 0
+    return {
+        "id": project.id,
+        "company_id": project.company_id,
+        "name": project.name,
+        "target_name": comp.name if comp else project.target_system,
+        "target_system": project.target_system,
+        "target_type": project.target_type,
+        "framework": project.framework,
+        "description": project.description,
+        "assessment_scope": project.assessment_scope,
+        "evaluation_objective": project.evaluation_objective,
+        "status": project.status,
+        "trace_count": trace_count,
+        "created_at": project.created_at.isoformat() if project.created_at else None,
+        "updated_at": project.updated_at.isoformat() if project.updated_at else None,
+    }
+
+@router.patch("/projects/{project_id}")
+def update_project_route(project_id: str, payload: Dict[str, Any] = Body(...), db: Session = Depends(get_db)):
+    """Updates editable project metadata."""
+    from app.projects.service import update_project
+    try:
+        updated = update_project(db, project_id, payload)
+        return {
+            "id": updated.id,
+            "name": updated.name,
+            "target_system": updated.target_system,
+            "status": updated.status,
+            "updated_at": updated.updated_at.isoformat() if updated.updated_at else None,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/projects/{project_id}/archive")
+def archive_project_route(project_id: str, db: Session = Depends(get_db)):
+    """Soft-archives a diligence project."""
+    from app.projects.service import archive_project
+    try:
+        archived = archive_project(db, project_id)
+        return {"id": archived.id, "status": archived.status, "message": "Project archived successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/projects/{project_id}/activity")
+def get_project_activity_route(project_id: str, db: Session = Depends(get_db)):
+    """Retrieves chronological activity timeline for a project."""
+    from app.projects.service import get_project_activities, get_project_by_id_or_company
+    project = get_project_by_id_or_company(db, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
+    return get_project_activities(db, project.id)
+
+
+
 @router.get("/companies/{company_id}/package")
 def get_diligence_package(company_id: str, db: Session = Depends(get_db)):
-    """Returns standardized diligence package for a company."""
+    """Returns standardized diligence package for a company or project."""
     try:
-        report = db.query(Report).filter(Report.company_id == company_id).order_by(Report.created_at.desc()).first()
+        from app.projects.service import get_project_by_id_or_company
+        proj = get_project_by_id_or_company(db, company_id)
+        target_comp_id = proj.company_id if proj else company_id
+
+        report = db.query(Report).filter(Report.company_id == target_comp_id).order_by(Report.created_at.desc()).first()
         if report and report.summary_json:
             return report.summary_json
-        return build_due_diligence_report(db, company_id)
+        return build_due_diligence_report(db, target_comp_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

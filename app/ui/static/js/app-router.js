@@ -469,7 +469,19 @@ function renderOverviewView(container) {
 // ==============================================================================
 // VIEW CONTROLLER 2: PROJECT CATALOG (/app/projects)
 // ==============================================================================
-function renderProjectsCatalogView(container) {
+async function renderProjectsCatalogView(container) {
+  container.innerHTML = '<div style="padding: 40px; text-align: center;"><div class="badge badge-info">Loading diligence projects...</div></div>';
+
+  let projects = [];
+  try {
+    const res = await fetch("/api/v1/projects");
+    if (res.ok) {
+      projects = await res.json();
+    }
+  } catch (err) {
+    console.error("Failed to load projects:", err);
+  }
+
   container.innerHTML = `
     <div style="margin-bottom: var(--space-6); display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: var(--space-4);">
       <div>
@@ -481,10 +493,11 @@ function renderProjectsCatalogView(container) {
 
     <div class="panel-card" style="margin-bottom: var(--space-6);">
       <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4);">
-        <input type="text" id="input-catalog-search" class="form-control" placeholder="Search target companies..." style="width: 320px;">
-        <div style="display: flex; gap: var(--space-2);">
-          <button class="btn btn-sm btn-outline active-filter" data-filter="all">All (${companiesList.length})</button>
-          <button class="btn btn-sm btn-outline" data-filter="completed">Completed</button>
+        <input type="text" id="input-catalog-search" class="form-control" placeholder="Search target companies or systems..." style="width: 320px;">
+        <div style="display: flex; gap: var(--space-2);" id="catalog-filter-group">
+          <button class="btn btn-sm btn-outline active-filter" data-filter="ACTIVE">Active (${projects.filter(p => p.status === 'ACTIVE').length})</button>
+          <button class="btn btn-sm btn-outline" data-filter="ALL">All (${projects.length})</button>
+          <button class="btn btn-sm btn-outline" data-filter="ARCHIVED">Archived</button>
         </div>
       </div>
 
@@ -492,24 +505,32 @@ function renderProjectsCatalogView(container) {
         <table class="data-table" id="table-catalog">
           <thead>
             <tr>
-              <th>Target Company</th>
-              <th>Identifier (UUID)</th>
+              <th>Diligence Project / Target</th>
+              <th>Target System / Role</th>
+              <th>Framework</th>
               <th>Ingested Traces</th>
-              <th>Evaluation Status</th>
+              <th>Status</th>
               <th>Created Date</th>
-              <th>Action</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="catalog-tbody">
-            ${companiesList.length === 0 ? '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 40px;">No projects found. Launch a new evaluation audit!</td></tr>' :
-              companiesList.map(c => `
-                <tr>
-                  <td><strong>${c.name}</strong></td>
-                  <td class="font-mono" style="font-size: 0.775rem; color: var(--text-muted);">${c.id}</td>
-                  <td><span class="badge badge-info font-mono">${c.trace_count} traces</span></td>
-                  <td><span class="badge ${c.status === 'COMPLETED' ? 'badge-success' : 'badge-warning'}">${c.status}</span></td>
-                  <td style="color: var(--text-muted);">${c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Recent'}</td>
-                  <td><a href="/app/projects/${c.id}" class="btn btn-sm btn-primary">Open Workspace →</a></td>
+            ${projects.length === 0 ? '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">No diligence projects found. Click "+ New Evaluation" to begin.</td></tr>' :
+              projects.map(p => `
+                <tr data-status="${p.status}">
+                  <td>
+                    <strong>${p.name}</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">${p.target_name || ''}</div>
+                  </td>
+                  <td style="font-size: 0.85rem;">${p.target_system || '--'}</td>
+                  <td><span class="badge badge-info" style="font-size: 0.75rem;">${p.framework || 'OTel GenAI'}</span></td>
+                  <td><span class="badge ${p.trace_count > 0 ? 'badge-success' : 'badge-warning'} font-mono">${p.trace_count} traces</span></td>
+                  <td><span class="badge ${p.status === 'ACTIVE' ? 'badge-primary' : 'badge-outline'}">${p.status}</span></td>
+                  <td style="color: var(--text-muted); font-size: 0.825rem;">${p.created_at ? new Date(p.created_at).toLocaleDateString() : 'Recent'}</td>
+                  <td style="display: flex; gap: var(--space-2); align-items: center;">
+                    <a href="/app/projects/${p.id}" class="btn btn-sm btn-primary">Open →</a>
+                    <button class="btn btn-sm btn-outline btn-archive-proj" data-id="${p.id}" title="Archive Project" style="padding: var(--space-1) var(--space-2); color: var(--text-muted);">🗑</button>
+                  </td>
                 </tr>
               `).join('')
             }
@@ -531,6 +552,47 @@ function renderProjectsCatalogView(container) {
       });
     });
   }
+
+  // Filter tabs
+  const filterBtns = container.querySelectorAll("#catalog-filter-group button");
+  filterBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      filterBtns.forEach(b => b.classList.remove("active-filter"));
+      btn.classList.add("active-filter");
+      const f = btn.getAttribute("data-filter");
+      const rows = container.querySelectorAll("#catalog-tbody tr");
+      rows.forEach(r => {
+        const st = r.getAttribute("data-status");
+        if (f === "ALL" || !f) {
+          r.style.display = "";
+        } else {
+          r.style.display = (st === f) ? "" : "none";
+        }
+      });
+    });
+  });
+
+  // Archive buttons
+  container.querySelectorAll(".btn-archive-proj").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const pId = btn.getAttribute("data-id");
+      if (confirm("Are you sure you want to archive this diligence project?")) {
+        try {
+          const res = await fetch(`/api/v1/projects/${pId}/archive`, { method: "POST" });
+          if (res.ok) {
+            showToast("Project archived successfully", "info");
+            await loadCompaniesList();
+            renderProjectsCatalogView(container);
+          } else {
+            throw new Error("Archival failed");
+          }
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      }
+    });
+  });
 }
 
 // ==============================================================================
@@ -541,7 +603,7 @@ function renderNewProjectView(container) {
     <div style="max-width: 800px; margin: 0 auto;">
       <div style="margin-bottom: var(--space-6);">
         <h1 style="font-size: 1.75rem; margin-bottom: var(--space-1);">Start a New Diligence Evaluation</h1>
-        <p style="color: var(--text-secondary); margin: 0;">Configure a new target evaluation container or run a reproducible ground-truth benchmark.</p>
+        <p style="color: var(--text-secondary); margin: 0;">Configure a genuine custom target evaluation or run a calibrated ground-truth benchmark.</p>
       </div>
 
       <div class="panel-card" style="box-shadow: var(--shadow-lg);">
@@ -556,12 +618,18 @@ function renderNewProjectView(container) {
             <label class="card" style="cursor: pointer; border: 1px solid var(--border-default);" id="wiz-card-custom">
               <input type="radio" name="wiz_type" value="custom" style="margin-bottom: var(--space-2);">
               <h4>Live OTel Ingestion Target</h4>
-              <p style="font-size: 0.8rem; margin: 0;">Create a target container ready to receive live OpenTelemetry or MCP traces.</p>
+              <p style="font-size: 0.8rem; margin: 0;">Create a clean diligence container ready to receive live OpenTelemetry or MCP traces.</p>
             </label>
           </div>
         </div>
 
         <div id="wiz-sec-bench" style="margin-bottom: var(--space-6);">
+          <div class="card" style="background: rgba(99, 133, 245, 0.08); border-color: rgba(99, 133, 245, 0.25); margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4);">
+            <span style="font-size: 0.8rem; color: var(--accent-primary); font-weight: 600;">ℹ️ SAMPLE BENCHMARK DATA DISCLOSURE:</span>
+            <p style="font-size: 0.775rem; color: var(--text-secondary); margin: var(--space-1) 0 0 0;">
+              Benchmark scenarios run against synthetic software flight recorder traces with calibrated ground-truth behavior.
+            </p>
+          </div>
           <div class="form-group">
             <label class="form-label" for="wiz-select-scenario">Select Benchmark Preset:</label>
             <select id="wiz-select-scenario" class="form-control">
@@ -580,19 +648,38 @@ function renderNewProjectView(container) {
         </div>
 
         <div id="wiz-sec-custom" style="display: none; margin-bottom: var(--space-6);">
+          <div class="card" style="background: rgba(57, 185, 165, 0.08); border-color: rgba(57, 185, 165, 0.25); margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4);">
+            <span style="font-size: 0.8rem; color: var(--accent-secondary); font-weight: 600;">🛡️ VERIFIABLE RUNTIME AUDIT CONTAINER:</span>
+            <p style="font-size: 0.775rem; color: var(--text-secondary); margin: var(--space-1) 0 0 0;">
+              Zero mock data will be injected. Create a clean project container ready for trace ingestion via OTel collector or file upload.
+            </p>
+          </div>
           <div class="form-group">
-            <label class="form-label" for="wiz-custom-name">Target Company Name:</label>
+            <label class="form-label" for="wiz-custom-name">Target Company / Project Name:</label>
             <input type="text" id="wiz-custom-name" class="form-control" placeholder="e.g. NexusFlow AI">
           </div>
           <div class="form-group">
             <label class="form-label" for="wiz-custom-role">Agent System / Workload Description:</label>
-            <input type="text" id="wiz-custom-role" class="form-control" placeholder="e.g. Tier-1 Autonomous Support Agent">
+            <input type="text" id="wiz-custom-role" class="form-control" placeholder="e.g. Autonomous Customer Support Tier-1">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="wiz-custom-framework">Primary Agent Framework:</label>
+            <select id="wiz-custom-framework" class="form-control">
+              <option value="LangGraph / LangChain">LangGraph / LangChain</option>
+              <option value="CrewAI Hierarchical">CrewAI Hierarchical Agent</option>
+              <option value="Claude MCP Observer">Claude Desktop / MCP Observer</option>
+              <option value="Custom OpenTelemetry">Custom In-House Python Loop</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="wiz-custom-scope">Assessment Scope / Stated Objectives:</label>
+            <input type="text" id="wiz-custom-scope" class="form-control" placeholder="e.g. Verify stated 90% autonomy claim and unit economics">
           </div>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: var(--space-3); border-top: 1px solid var(--border-default); padding-top: var(--space-5);">
           <a href="/app/projects" class="btn btn-secondary">Cancel</a>
-          <button id="wiz-btn-submit" class="btn btn-primary btn-lg">Run Evaluation Audit →</button>
+          <button id="wiz-btn-submit" class="btn btn-primary btn-lg">Launch Evaluation Workspace →</button>
         </div>
       </div>
     </div>
@@ -621,7 +708,7 @@ function renderNewProjectView(container) {
 
   const submitBtn = container.querySelector("#wiz-btn-submit");
   submitBtn.addEventListener("click", async () => {
-    submitBtn.innerText = "Executing audit & generating package...";
+    submitBtn.innerText = "Initializing project...";
     submitBtn.disabled = true;
 
     try {
@@ -629,26 +716,49 @@ function renderNewProjectView(container) {
         const sc = container.querySelector("#wiz-select-scenario").value;
         const size = container.querySelector("#wiz-sample-size").value || 100;
         const res = await fetch(`/api/v1/scenarios/${sc}/run?sample_size=${size}`);
-        if (!res.ok) throw new Error("Evaluation run failed with status " + res.status);
+        if (!res.ok) throw new Error("Benchmark scenario run failed with status " + res.status);
         const data = await res.json();
-        showToast("Evaluation successfully compiled!", "success");
+        showToast("Benchmark evaluation successfully compiled!", "success");
         await loadCompaniesList();
         navigateTo(`/app/projects/${data.company?.id}`);
       } else {
-        const res = await fetch(`/api/v1/scenarios/scenario_a/run?sample_size=30`);
-        const data = await res.json();
+        const targetName = container.querySelector("#wiz-custom-name").value.trim() || "Custom AI Target";
+        const role = container.querySelector("#wiz-custom-role").value.trim() || targetName;
+        const framework = container.querySelector("#wiz-custom-framework").value;
+        const scope = container.querySelector("#wiz-custom-scope").value.trim();
+
+        const res = await fetch("/api/v1/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: `${targetName} Diligence`,
+            target_name: targetName,
+            target_system: role,
+            framework: framework,
+            target_type: "autonomous_agent",
+            description: `Diligence audit container for ${targetName}.`,
+            assessment_scope: scope
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.detail || "Failed to create project");
+        }
+
+        const proj = await res.json();
+        showToast(`Project '${proj.name}' initialized!`, "success");
         await loadCompaniesList();
-        navigateTo(`/app/projects/${data.company?.id}`);
+        navigateTo(`/app/projects/${proj.id}`);
       }
     } catch (err) {
       showToast("Error creating evaluation: " + err.message, "error");
-      submitBtn.innerText = "Run Evaluation Audit →";
+      submitBtn.innerText = "Launch Evaluation Workspace →";
       submitBtn.disabled = false;
     }
   });
 }
 
-// ==============================================================================
 // VIEW CONTROLLER 4: PROJECT OVERVIEW (/app/projects/{id})
 // ==============================================================================
 function renderProjectOverviewView(container, compId) {

@@ -37,5 +37,11 @@ def init_db():
             if cols and "provenance_hash" not in cols:
                 conn.execute(text("ALTER TABLE traces ADD COLUMN provenance_hash VARCHAR(64)"))
                 conn.commit()
+
+            result_rep = conn.execute(text("PRAGMA table_info(reports)")).fetchall()
+            cols_rep = [r[1] for r in result_rep]
+            if cols_rep and "assessment_id" not in cols_rep:
+                conn.execute(text("ALTER TABLE reports ADD COLUMN assessment_id VARCHAR(36)"))
+                conn.commit()
         except Exception:
             pass

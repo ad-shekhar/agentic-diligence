@@ -11,6 +11,8 @@ def analyze_evaluation_overhead(db: Session, company_id: str) -> Dict[str, Any]:
     total_traces = db.query(func.count(Trace.id)).filter(Trace.company_id == company_id).scalar() or 0
     if total_traces == 0:
         return {
+            "eval_traces_count": 0,
+            "total_traces": 0,
             "eval_coverage_pct": 0.0,
             "trust_tax_rate_pct": 0.0,
             "inference_cost_usd": 0.0,

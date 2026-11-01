@@ -280,6 +280,7 @@ class Report(Base):
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
     company_id = Column(String(36), ForeignKey("companies.id"), nullable=False)
+    assessment_id = Column(String(36), ForeignKey("assessments.id"), nullable=True)
     title = Column(String(255), nullable=False)
     report_type = Column(String(100), default="technical_due_diligence")
     summary_json = Column(JSON, nullable=True)
@@ -287,6 +288,7 @@ class Report(Base):
     created_at = Column(DateTime, default=utc_now)
     
     company = relationship("Company", back_populates="reports")
+    assessment = relationship("Assessment", back_populates="reports")
 
 class PayloadProvenance(Base):
     """
@@ -401,5 +403,146 @@ class DurableEvidenceRecord(Base):
             envelope=envelope,
             conflict_details=self.conflict_details,
         )
+
+
+# ==============================================================================
+# PHASE 9: PROJECT LIFECYCLE & WORKFLOW MODELS
+# ==============================================================================
+
+class Project(Base):
+    """
+    Core organizational unit for technical due diligence assessments.
+    Binds an evaluation scope, target system metadata, and objectives
+    to an underlying target Company without duplicate data stores.
+    """
+    __tablename__ = "projects"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    tenant_id = Column(String(36), ForeignKey("tenants.id"), nullable=False, index=True)
+    company_id = Column(String(36), ForeignKey("companies.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+    target_system = Column(String(255), nullable=True)
+    target_type = Column(String(100), default="autonomous_agent", nullable=False)
+    framework = Column(String(100), nullable=True)
+    assessment_scope = Column(Text, nullable=True)
+    evaluation_objective = Column(Text, nullable=True)
+    status = Column(String(50), default="ACTIVE", nullable=False)  # ACTIVE, ARCHIVED, DRAFT
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
+
+    tenant = relationship("Tenant", backref="projects")
+    company = relationship("Company", backref="projects")
+    assessments = relationship("Assessment", back_populates="project", cascade="all, delete-orphan")
+    ingestion_jobs = relationship("IngestionJob", back_populates="project", cascade="all, delete-orphan")
+    activities = relationship("ProjectActivity", back_populates="project", cascade="all, delete-orphan")
+
+
+class ProjectActivity(Base):
+    """
+    Immutable audit timeline tracking project lifecycle actions.
+    """
+    __tablename__ = "project_activities"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    activity_type = Column(String(100), nullable=False)  # PROJECT_CREATED, TELEMETRY_INGESTED, ASSESSMENT_RUN, REPORT_GENERATED, PROJECT_UPDATED, PROJECT_ARCHIVED
+    description = Column(Text, nullable=False)
+    metadata_json = Column(JSON, nullable=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
+    project = relationship("Project", back_populates="activities")
+
+
+class Assessment(Base):
+    """
+    Execution run of the diligence analysis pipeline against an evidence base.
+    Preserves execution state, timestamps, findings, and engine results.
+    """
+    __tablename__ = "assessments"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    company_id = Column(String(36), ForeignKey("companies.id"), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    status = Column(String(50), default="PENDING", nullable=False)  # PENDING, RUNNING, COMPLETED, PARTIALLY_COMPLETED, FAILED, CANCELLED
+    selected_engines = Column(JSON, nullable=True)
+    summary_findings = Column(JSON, nullable=True)  # synthesized red/yellow flags, deal verdict, confidence
+    error_message = Column(Text, nullable=True)
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
+    project = relationship("Project", back_populates="assessments")
+    company = relationship("Company", backref="assessments")
+    engine_executions = relationship("AssessmentEngineExecution", back_populates="assessment", cascade="all, delete-orphan")
+    findings = relationship("Finding", back_populates="assessment", cascade="all, delete-orphan")
+    reports = relationship("Report", back_populates="assessment")
+
+
+class AssessmentEngineExecution(Base):
+    """
+    Execution state, duration, and persisted JSON result for an individual engine.
+    """
+    __tablename__ = "assessment_engine_executions"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    assessment_id = Column(String(36), ForeignKey("assessments.id"), nullable=False, index=True)
+    engine_key = Column(String(50), nullable=False)  # claims, autonomy, economics, dependencies, aibom, evidence, security, defensibility, stress_test, comparison
+    engine_name = Column(String(100), nullable=False)
+    status = Column(String(50), default="PENDING", nullable=False)  # PENDING, RUNNING, COMPLETED, FAILED, SKIPPED
+    duration_ms = Column(Float, default=0.0)
+    result_json = Column(JSON, nullable=True)
+    error_details = Column(Text, nullable=True)
+    evidence_count = Column(Integer, default=0)
+    executed_at = Column(DateTime, default=utc_now, nullable=False)
+
+    assessment = relationship("Assessment", back_populates="engine_executions")
+
+
+class Finding(Base):
+    """
+    Structured risk, integrity, or compliance finding extracted from engine results.
+    """
+    __tablename__ = "findings"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    assessment_id = Column(String(36), ForeignKey("assessments.id"), nullable=False, index=True)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
+    engine_key = Column(String(50), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=False)
+    severity = Column(String(50), nullable=False)  # CRITICAL, HIGH, MEDIUM, LOW, INFO
+    confidence = Column(String(50), default="Calculated")
+    evidence_references = Column(JSON, nullable=True)
+    recommendation = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
+    assessment = relationship("Assessment", back_populates="findings")
+    project = relationship("Project", backref="findings")
+
+
+class IngestionJob(Base):
+    """
+    Durable record tracking file upload jobs, format validation, and batch statuses.
+    """
+    __tablename__ = "ingestion_jobs"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    project_id = Column(String(36), ForeignKey("projects.id"), nullable=True, index=True)
+    company_id = Column(String(36), ForeignKey("companies.id"), nullable=False, index=True)
+    filename = Column(String(255), nullable=True)
+    file_size_bytes = Column(Integer, default=0)
+    format = Column(String(50), default="otlp_json", nullable=False)
+    payload_hash = Column(String(64), nullable=True)
+    status = Column(String(50), default="PROCESSING", nullable=False)  # SUCCESS, FAILED, PARTIAL, DUPLICATE
+    traces_count = Column(Integer, default=0)
+    spans_count = Column(Integer, default=0)
+    error_message = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False)
+
+    project = relationship("Project", back_populates="ingestion_jobs")
+    company = relationship("Company", backref="ingestion_jobs")
+
 
 

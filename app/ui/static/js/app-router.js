@@ -140,6 +140,7 @@ function updateSidebarProjectContext(companyId, companyName) {
   // Update dynamic hrefs
   const base = `/app/projects/${companyId}`;
   document.getElementById("nav-proj-overview").href = base;
+  if (document.getElementById("nav-proj-findings")) document.getElementById("nav-proj-findings").href = `${base}/findings`;
   document.getElementById("nav-proj-claims").href = `${base}/claims`;
   document.getElementById("nav-proj-autonomy").href = `${base}/autonomy`;
   document.getElementById("nav-proj-economics").href = `${base}/economics`;
@@ -249,6 +250,11 @@ async function handleRoute(path) {
         highlightSidebar("project-overview");
         updateBreadcrumbs([{ label: "Projects", url: "/app/projects" }, { label: compName, url: baseProjUrl }, { label: "Overview" }]);
         renderProjectOverviewView(container, compId);
+        break;
+      case "findings":
+        highlightSidebar("findings");
+        updateBreadcrumbs([{ label: "Projects", url: "/app/projects" }, { label: compName, url: baseProjUrl }, { label: "Findings & Risk Register" }]);
+        renderFindingsRegisterView(container, compId);
         break;
       case "claims":
         highlightSidebar("claims");
@@ -469,7 +475,19 @@ function renderOverviewView(container) {
 // ==============================================================================
 // VIEW CONTROLLER 2: PROJECT CATALOG (/app/projects)
 // ==============================================================================
-function renderProjectsCatalogView(container) {
+async function renderProjectsCatalogView(container) {
+  container.innerHTML = '<div style="padding: 40px; text-align: center;"><div class="badge badge-info">Loading diligence projects...</div></div>';
+
+  let projects = [];
+  try {
+    const res = await fetch("/api/v1/projects");
+    if (res.ok) {
+      projects = await res.json();
+    }
+  } catch (err) {
+    console.error("Failed to load projects:", err);
+  }
+
   container.innerHTML = `
     <div style="margin-bottom: var(--space-6); display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: var(--space-4);">
       <div>
@@ -481,10 +499,11 @@ function renderProjectsCatalogView(container) {
 
     <div class="panel-card" style="margin-bottom: var(--space-6);">
       <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4);">
-        <input type="text" id="input-catalog-search" class="form-control" placeholder="Search target companies..." style="width: 320px;">
-        <div style="display: flex; gap: var(--space-2);">
-          <button class="btn btn-sm btn-outline active-filter" data-filter="all">All (${companiesList.length})</button>
-          <button class="btn btn-sm btn-outline" data-filter="completed">Completed</button>
+        <input type="text" id="input-catalog-search" class="form-control" placeholder="Search target companies or systems..." style="width: 320px;">
+        <div style="display: flex; gap: var(--space-2);" id="catalog-filter-group">
+          <button class="btn btn-sm btn-outline active-filter" data-filter="ACTIVE">Active (${projects.filter(p => p.status === 'ACTIVE').length})</button>
+          <button class="btn btn-sm btn-outline" data-filter="ALL">All (${projects.length})</button>
+          <button class="btn btn-sm btn-outline" data-filter="ARCHIVED">Archived</button>
         </div>
       </div>
 
@@ -492,24 +511,32 @@ function renderProjectsCatalogView(container) {
         <table class="data-table" id="table-catalog">
           <thead>
             <tr>
-              <th>Target Company</th>
-              <th>Identifier (UUID)</th>
+              <th>Diligence Project / Target</th>
+              <th>Target System / Role</th>
+              <th>Framework</th>
               <th>Ingested Traces</th>
-              <th>Evaluation Status</th>
+              <th>Status</th>
               <th>Created Date</th>
-              <th>Action</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="catalog-tbody">
-            ${companiesList.length === 0 ? '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 40px;">No projects found. Launch a new evaluation audit!</td></tr>' :
-              companiesList.map(c => `
-                <tr>
-                  <td><strong>${c.name}</strong></td>
-                  <td class="font-mono" style="font-size: 0.775rem; color: var(--text-muted);">${c.id}</td>
-                  <td><span class="badge badge-info font-mono">${c.trace_count} traces</span></td>
-                  <td><span class="badge ${c.status === 'COMPLETED' ? 'badge-success' : 'badge-warning'}">${c.status}</span></td>
-                  <td style="color: var(--text-muted);">${c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Recent'}</td>
-                  <td><a href="/app/projects/${c.id}" class="btn btn-sm btn-primary">Open Workspace →</a></td>
+            ${projects.length === 0 ? '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">No diligence projects found. Click "+ New Evaluation" to begin.</td></tr>' :
+              projects.map(p => `
+                <tr data-status="${p.status}">
+                  <td>
+                    <strong>${p.name}</strong>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">${p.target_name || ''}</div>
+                  </td>
+                  <td style="font-size: 0.85rem;">${p.target_system || '--'}</td>
+                  <td><span class="badge badge-info" style="font-size: 0.75rem;">${p.framework || 'OTel GenAI'}</span></td>
+                  <td><span class="badge ${p.trace_count > 0 ? 'badge-success' : 'badge-warning'} font-mono">${p.trace_count} traces</span></td>
+                  <td><span class="badge ${p.status === 'ACTIVE' ? 'badge-primary' : 'badge-outline'}">${p.status}</span></td>
+                  <td style="color: var(--text-muted); font-size: 0.825rem;">${p.created_at ? new Date(p.created_at).toLocaleDateString() : 'Recent'}</td>
+                  <td style="display: flex; gap: var(--space-2); align-items: center;">
+                    <a href="/app/projects/${p.id}" class="btn btn-sm btn-primary">Open →</a>
+                    <button class="btn btn-sm btn-outline btn-archive-proj" data-id="${p.id}" title="Archive Project" style="padding: var(--space-1) var(--space-2); color: var(--text-muted);">🗑</button>
+                  </td>
                 </tr>
               `).join('')
             }
@@ -531,6 +558,47 @@ function renderProjectsCatalogView(container) {
       });
     });
   }
+
+  // Filter tabs
+  const filterBtns = container.querySelectorAll("#catalog-filter-group button");
+  filterBtns.forEach(btn => {
+    btn.addEventListener("click", () => {
+      filterBtns.forEach(b => b.classList.remove("active-filter"));
+      btn.classList.add("active-filter");
+      const f = btn.getAttribute("data-filter");
+      const rows = container.querySelectorAll("#catalog-tbody tr");
+      rows.forEach(r => {
+        const st = r.getAttribute("data-status");
+        if (f === "ALL" || !f) {
+          r.style.display = "";
+        } else {
+          r.style.display = (st === f) ? "" : "none";
+        }
+      });
+    });
+  });
+
+  // Archive buttons
+  container.querySelectorAll(".btn-archive-proj").forEach(btn => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const pId = btn.getAttribute("data-id");
+      if (confirm("Are you sure you want to archive this diligence project?")) {
+        try {
+          const res = await fetch(`/api/v1/projects/${pId}/archive`, { method: "POST" });
+          if (res.ok) {
+            showToast("Project archived successfully", "info");
+            await loadCompaniesList();
+            renderProjectsCatalogView(container);
+          } else {
+            throw new Error("Archival failed");
+          }
+        } catch (err) {
+          showToast(err.message, "error");
+        }
+      }
+    });
+  });
 }
 
 // ==============================================================================
@@ -541,7 +609,7 @@ function renderNewProjectView(container) {
     <div style="max-width: 800px; margin: 0 auto;">
       <div style="margin-bottom: var(--space-6);">
         <h1 style="font-size: 1.75rem; margin-bottom: var(--space-1);">Start a New Diligence Evaluation</h1>
-        <p style="color: var(--text-secondary); margin: 0;">Configure a new target evaluation container or run a reproducible ground-truth benchmark.</p>
+        <p style="color: var(--text-secondary); margin: 0;">Configure a genuine custom target evaluation or run a calibrated ground-truth benchmark.</p>
       </div>
 
       <div class="panel-card" style="box-shadow: var(--shadow-lg);">
@@ -556,12 +624,18 @@ function renderNewProjectView(container) {
             <label class="card" style="cursor: pointer; border: 1px solid var(--border-default);" id="wiz-card-custom">
               <input type="radio" name="wiz_type" value="custom" style="margin-bottom: var(--space-2);">
               <h4>Live OTel Ingestion Target</h4>
-              <p style="font-size: 0.8rem; margin: 0;">Create a target container ready to receive live OpenTelemetry or MCP traces.</p>
+              <p style="font-size: 0.8rem; margin: 0;">Create a clean diligence container ready to receive live OpenTelemetry or MCP traces.</p>
             </label>
           </div>
         </div>
 
         <div id="wiz-sec-bench" style="margin-bottom: var(--space-6);">
+          <div class="card" style="background: rgba(99, 133, 245, 0.08); border-color: rgba(99, 133, 245, 0.25); margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4);">
+            <span style="font-size: 0.8rem; color: var(--accent-primary); font-weight: 600;">ℹ️ SAMPLE BENCHMARK DATA DISCLOSURE:</span>
+            <p style="font-size: 0.775rem; color: var(--text-secondary); margin: var(--space-1) 0 0 0;">
+              Benchmark scenarios run against synthetic software flight recorder traces with calibrated ground-truth behavior.
+            </p>
+          </div>
           <div class="form-group">
             <label class="form-label" for="wiz-select-scenario">Select Benchmark Preset:</label>
             <select id="wiz-select-scenario" class="form-control">
@@ -580,19 +654,38 @@ function renderNewProjectView(container) {
         </div>
 
         <div id="wiz-sec-custom" style="display: none; margin-bottom: var(--space-6);">
+          <div class="card" style="background: rgba(57, 185, 165, 0.08); border-color: rgba(57, 185, 165, 0.25); margin-bottom: var(--space-4); padding: var(--space-3) var(--space-4);">
+            <span style="font-size: 0.8rem; color: var(--accent-secondary); font-weight: 600;">🛡️ VERIFIABLE RUNTIME AUDIT CONTAINER:</span>
+            <p style="font-size: 0.775rem; color: var(--text-secondary); margin: var(--space-1) 0 0 0;">
+              Zero mock data will be injected. Create a clean project container ready for trace ingestion via OTel collector or file upload.
+            </p>
+          </div>
           <div class="form-group">
-            <label class="form-label" for="wiz-custom-name">Target Company Name:</label>
+            <label class="form-label" for="wiz-custom-name">Target Company / Project Name:</label>
             <input type="text" id="wiz-custom-name" class="form-control" placeholder="e.g. NexusFlow AI">
           </div>
           <div class="form-group">
             <label class="form-label" for="wiz-custom-role">Agent System / Workload Description:</label>
-            <input type="text" id="wiz-custom-role" class="form-control" placeholder="e.g. Tier-1 Autonomous Support Agent">
+            <input type="text" id="wiz-custom-role" class="form-control" placeholder="e.g. Autonomous Customer Support Tier-1">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="wiz-custom-framework">Primary Agent Framework:</label>
+            <select id="wiz-custom-framework" class="form-control">
+              <option value="LangGraph / LangChain">LangGraph / LangChain</option>
+              <option value="CrewAI Hierarchical">CrewAI Hierarchical Agent</option>
+              <option value="Claude MCP Observer">Claude Desktop / MCP Observer</option>
+              <option value="Custom OpenTelemetry">Custom In-House Python Loop</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="wiz-custom-scope">Assessment Scope / Stated Objectives:</label>
+            <input type="text" id="wiz-custom-scope" class="form-control" placeholder="e.g. Verify stated 90% autonomy claim and unit economics">
           </div>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: var(--space-3); border-top: 1px solid var(--border-default); padding-top: var(--space-5);">
           <a href="/app/projects" class="btn btn-secondary">Cancel</a>
-          <button id="wiz-btn-submit" class="btn btn-primary btn-lg">Run Evaluation Audit →</button>
+          <button id="wiz-btn-submit" class="btn btn-primary btn-lg">Launch Evaluation Workspace →</button>
         </div>
       </div>
     </div>
@@ -621,7 +714,7 @@ function renderNewProjectView(container) {
 
   const submitBtn = container.querySelector("#wiz-btn-submit");
   submitBtn.addEventListener("click", async () => {
-    submitBtn.innerText = "Executing audit & generating package...";
+    submitBtn.innerText = "Initializing project...";
     submitBtn.disabled = true;
 
     try {
@@ -629,26 +722,49 @@ function renderNewProjectView(container) {
         const sc = container.querySelector("#wiz-select-scenario").value;
         const size = container.querySelector("#wiz-sample-size").value || 100;
         const res = await fetch(`/api/v1/scenarios/${sc}/run?sample_size=${size}`);
-        if (!res.ok) throw new Error("Evaluation run failed with status " + res.status);
+        if (!res.ok) throw new Error("Benchmark scenario run failed with status " + res.status);
         const data = await res.json();
-        showToast("Evaluation successfully compiled!", "success");
+        showToast("Benchmark evaluation successfully compiled!", "success");
         await loadCompaniesList();
         navigateTo(`/app/projects/${data.company?.id}`);
       } else {
-        const res = await fetch(`/api/v1/scenarios/scenario_a/run?sample_size=30`);
-        const data = await res.json();
+        const targetName = container.querySelector("#wiz-custom-name").value.trim() || "Custom AI Target";
+        const role = container.querySelector("#wiz-custom-role").value.trim() || targetName;
+        const framework = container.querySelector("#wiz-custom-framework").value;
+        const scope = container.querySelector("#wiz-custom-scope").value.trim();
+
+        const res = await fetch("/api/v1/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: `${targetName} Diligence`,
+            target_name: targetName,
+            target_system: role,
+            framework: framework,
+            target_type: "autonomous_agent",
+            description: `Diligence audit container for ${targetName}.`,
+            assessment_scope: scope
+          })
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.detail || "Failed to create project");
+        }
+
+        const proj = await res.json();
+        showToast(`Project '${proj.name}' initialized!`, "success");
         await loadCompaniesList();
-        navigateTo(`/app/projects/${data.company?.id}`);
+        navigateTo(`/app/projects/${proj.id}`);
       }
     } catch (err) {
       showToast("Error creating evaluation: " + err.message, "error");
-      submitBtn.innerText = "Run Evaluation Audit →";
+      submitBtn.innerText = "Launch Evaluation Workspace →";
       submitBtn.disabled = false;
     }
   });
 }
 
-// ==============================================================================
 // VIEW CONTROLLER 4: PROJECT OVERVIEW (/app/projects/{id})
 // ==============================================================================
 function renderProjectOverviewView(container, compId) {
@@ -658,6 +774,38 @@ function renderProjectOverviewView(container, compId) {
   }
 
   const p = currentPackageData;
+  setTimeout(() => {
+    const runBtn = document.getElementById("btn-run-assessment-overview");
+    if (runBtn) {
+      runBtn.addEventListener("click", async () => {
+        runBtn.disabled = true;
+        runBtn.innerText = "Executing Engines...";
+        showToast("Running full assessment across all 10 analytical engines...", "info");
+        try {
+          const res = await fetch(`/api/v1/projects/${compId}/assessments`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ trigger_type: "MANUAL" })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            showToast(`Assessment Complete! Status: ${data.status} (${(data.findings || []).length} findings, verdict: ${data.summary_verdict})`, "success");
+            currentPackageData = null;
+            await loadDiligencePackage(compId);
+            renderProjectOverviewView(container, compId);
+          } else {
+            const err = await res.json();
+            throw new Error(err.detail || "Assessment failed");
+          }
+        } catch (e) {
+          showToast("Assessment Error: " + e.message, "danger");
+        } finally {
+          runBtn.disabled = false;
+          runBtn.innerText = "▶ Run Diligence Assessment";
+        }
+      });
+    }
+  }, 50);
   const comp = p.company || {};
   const intv = p.interventions || {};
   const econ = p.economics || {};
@@ -674,9 +822,12 @@ function renderProjectOverviewView(container, compId) {
         </div>
         <p style="margin: 0; color: var(--text-secondary);">Observation Window: ${p.observation_window || "Last 30 Days"} | Rate Card: ${p.report_metadata?.pricing_version || "v2026_09"}</p>
       </div>
-      <div style="display: flex; gap: var(--space-3);">
-        <a href="/app/projects/${compId}/claims" class="btn btn-secondary btn-sm">Inspect Claims Matrix →</a>
-        <a href="/app/projects/${compId}/reports" class="btn btn-primary btn-sm">📄 Deal Memo & Downloads</a>
+      <div style="display: flex; gap: var(--space-2); align-items: center;">
+        <button class="btn btn-primary btn-sm" id="btn-run-assessment-overview">
+          <span>▶</span> Run Diligence Assessment
+        </button>
+        <a href="/app/projects/${compId}/findings" class="btn btn-secondary btn-sm">🚩 Findings Register</a>
+        <a href="/app/projects/${compId}/reports" class="btn btn-secondary btn-sm">📄 Downloads & Memo</a>
       </div>
     </div>
 
@@ -701,6 +852,21 @@ function renderProjectOverviewView(container, compId) {
         <div class="kpi-label">Diligence Risk Score</div>
         <div class="kpi-value" style="color: ${memo.diligence_risk_score > 50 ? 'var(--color-danger)' : 'var(--color-success)'};">${memo.diligence_risk_score ?? "--"} / 100</div>
         <div class="kpi-sub">${memo.risk_classification || "MODERATE"} RISK (${memo.deal_verdict || "CONDITIONAL"})</div>
+      </div>
+    </div>
+
+    <!-- Health & Diligence Status Strip -->
+    <div class="panel-card" style="margin-bottom: var(--space-6); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4);">
+      <div>
+        <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: 2px;">
+          <h4 style="margin: 0;">Automated Diligence Engine Status</h4>
+          <span class="badge badge-success">Orchestrator Ready</span>
+        </div>
+        <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">10 analytical engines ready to verify pitch deck claims against execution traces.</p>
+      </div>
+      <div style="display: flex; gap: var(--space-2);">
+        <a href="/app/projects/${compId}/evidence" class="btn btn-outline btn-sm">Ingest Traces</a>
+        <a href="/app/projects/${compId}/findings" class="btn btn-secondary btn-sm">View Risk Register</a>
       </div>
     </div>
 
@@ -1114,18 +1280,74 @@ function renderAIBOMView(container, compId) {
 // ==============================================================================
 // VIEW CONTROLLER 10: EVIDENCE & PROVENANCE GRAPH (/app/projects/{id}/evidence)
 // ==============================================================================
-function renderEvidenceView(container, compId) {
+async function renderEvidenceView(container, compId) {
   const p = currentPackageData || {};
   const records = p.evidence_records || [];
 
   container.innerHTML = `
-    <div style="margin-bottom: var(--space-6);">
-      <h1 style="font-size: 1.75rem; margin-bottom: var(--space-1);">Proof & Evidence Graph</h1>
-      <p style="margin: 0; color: var(--text-secondary);">Verifiable chain of custody connecting diligence verdicts directly to raw trace IDs and SHA-256 digests.</p>
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-6);">
+      <div>
+        <h1 style="font-size: 1.75rem; margin-bottom: var(--space-1);">Proof & Evidence Graph</h1>
+        <p style="margin: 0; color: var(--text-secondary);">Verifiable chain of custody connecting diligence verdicts directly to raw trace IDs, OpenTelemetry spans, and SHA-256 digests.</p>
+      </div>
+      <button class="btn btn-primary" id="btn-evidence-open-upload">
+        <span>↑</span> Ingest Evidence / Traces
+      </button>
     </div>
 
+    <div class="metric-grid" style="margin-bottom: var(--space-6);" id="evidence-kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Anchored Traces</div>
+        <div class="kpi-value font-mono" id="ev-kpi-traces">--</div>
+        <div class="kpi-sub">Total validated telemetry traces</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Normalized Spans</div>
+        <div class="kpi-value font-mono" id="ev-kpi-spans">--</div>
+        <div class="kpi-sub">OpenTelemetry GenAI conventions v1.28</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Evidence Records</div>
+        <div class="kpi-value font-mono">${records.length}</div>
+        <div class="kpi-sub">Claim verification data points</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Provenance Digests</div>
+        <div class="kpi-value font-mono" id="ev-kpi-digests">--</div>
+        <div class="kpi-sub">SHA-256 verified payloads</div>
+      </div>
+    </div>
+
+    <!-- Ingestion Audit Log -->
+    <div class="panel-card" style="margin-bottom: var(--space-6);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+        <div>
+          <h3 style="margin-bottom: 2px;">Telemetry Ingestion History</h3>
+          <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">Cryptographic batch ingestion log with duplicate detection and SHA-256 fingerprints.</p>
+        </div>
+      </div>
+      <div class="table-container">
+        <table class="data-table" id="table-ingestion-jobs">
+          <thead>
+            <tr>
+              <th>File / Source</th>
+              <th>Size</th>
+              <th>SHA-256 Digest</th>
+              <th>Status</th>
+              <th>Spans</th>
+              <th>Ingested At</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-ingestion-jobs">
+            <tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-muted);">Loading ingestion history...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Claim Evidence Records -->
     <div class="panel-card">
-      <h3 style="margin-bottom: var(--space-3);">Auditable Evidence Records</h3>
+      <h3 style="margin-bottom: var(--space-3);">Auditable Claim Evidence Records</h3>
       <div class="table-container">
         <table class="data-table">
           <thead>
@@ -1139,7 +1361,7 @@ function renderEvidenceView(container, compId) {
             </tr>
           </thead>
           <tbody>
-            ${records.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">No evidence records anchored.</td></tr>' :
+            ${records.length === 0 ? '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-muted);">No evidence records anchored. Ingest traces to run verification engines.</td></tr>' :
               records.map(r => `
                 <tr>
                   <td class="font-mono"><strong>${r.record_id}</strong></td>
@@ -1156,6 +1378,66 @@ function renderEvidenceView(container, compId) {
       </div>
     </div>
   `;
+
+  // Wire Ingest Evidence button
+  const uploadBtn = document.getElementById("btn-evidence-open-upload");
+  if (uploadBtn) {
+    uploadBtn.addEventListener("click", () => {
+      const modal = document.getElementById("modal-upload");
+      if (modal) modal.classList.add("open");
+    });
+  }
+
+  // Fetch real evidence stats and ingestion jobs
+  try {
+    const [evRes, jobsRes] = await Promise.all([
+      fetch(`/api/v1/projects/${compId}/evidence`),
+      fetch(`/api/v1/projects/${compId}/ingestion-jobs`)
+    ]);
+
+    if (evRes.ok) {
+      const evData = await evRes.json();
+      const traceElem = document.getElementById("ev-kpi-traces");
+      const spanElem = document.getElementById("ev-kpi-spans");
+      const digestElem = document.getElementById("ev-kpi-digests");
+      if (traceElem) traceElem.innerText = evData.total_traces ?? 0;
+      if (spanElem) spanElem.innerText = evData.total_spans ?? 0;
+      if (digestElem) digestElem.innerText = (evData.provenance_digests || []).length;
+    }
+
+    if (jobsRes.ok) {
+      const jobs = await jobsRes.json();
+      const tbody = document.getElementById("tbody-ingestion-jobs");
+      if (tbody) {
+        if (!jobs || jobs.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: var(--text-muted);">No telemetry files uploaded yet. Click "Ingest Evidence / Traces" above.</td></tr>';
+        } else {
+          tbody.innerHTML = jobs.map(j => {
+            let statusBadge = `<span class="badge badge-success">${j.status}</span>`;
+            if (j.status === "FAILED") statusBadge = `<span class="badge badge-danger">${j.status}</span>`;
+            else if (j.status === "DUPLICATE") statusBadge = `<span class="badge badge-warning" title="${j.error_message || ''}">DUPLICATE</span>`;
+            
+            const sizeKb = j.file_size_bytes ? (j.file_size_bytes / 1024).toFixed(1) + " KB" : "--";
+            const dateStr = j.created_at ? new Date(j.created_at).toLocaleString() : "--";
+            const hashShort = j.payload_hash ? j.payload_hash.substring(0, 16) + "..." : "--";
+
+            return `
+              <tr>
+                <td><strong>${j.filename || "payload.json"}</strong></td>
+                <td class="font-mono" style="font-size: 0.8rem;">${sizeKb}</td>
+                <td class="font-mono" style="font-size: 0.75rem; color: var(--text-muted);" title="${j.payload_hash || ''}">${hashShort}</td>
+                <td>${statusBadge}</td>
+                <td class="font-mono">${j.spans_count || 0}</td>
+                <td style="font-size: 0.8rem; color: var(--text-secondary);">${dateStr}</td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+    }
+  } catch (err) {
+    console.error("Failed to load evidence details:", err);
+  }
 }
 
 // ==============================================================================
@@ -1376,9 +1658,171 @@ function renderComparisonView(container, compId) {
 }
 
 // ==============================================================================
+// VIEW CONTROLLER 14.5: FINDINGS & RISK REGISTER (/app/projects/{id}/findings)
+// ==============================================================================
+async function renderFindingsRegisterView(container, compId) {
+  let activeSeverity = "ALL";
+  let activeEngine = "ALL";
+
+  container.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-6); flex-wrap: wrap; gap: var(--space-4);">
+      <div>
+        <h1 style="font-size: 1.75rem; margin-bottom: var(--space-1);">Diligence Findings & Risk Register</h1>
+        <p style="margin: 0; color: var(--text-secondary);">Synthesized architectural risks, verification discrepancies, single points of failure, and security blast radiuses.</p>
+      </div>
+      <div style="display: flex; gap: var(--space-2);">
+        <button class="btn btn-primary btn-sm" id="btn-findings-run-assessment">
+          <span>▶</span> Run Fresh Assessment
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="panel-card" style="margin-bottom: var(--space-6); padding: var(--space-4);">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4);">
+        <div style="display: flex; gap: var(--space-2); align-items: center;" id="findings-severity-filters">
+          <span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 4px;">Severity:</span>
+          <button class="btn btn-sm btn-primary filter-sev" data-sev="ALL">All</button>
+          <button class="btn btn-sm btn-secondary filter-sev" data-sev="CRITICAL">Critical</button>
+          <button class="btn btn-sm btn-secondary filter-sev" data-sev="HIGH">High</button>
+          <button class="btn btn-sm btn-secondary filter-sev" data-sev="MEDIUM">Medium</button>
+          <button class="btn btn-sm btn-secondary filter-sev" data-sev="LOW">Low</button>
+        </div>
+        <div style="display: flex; gap: var(--space-2); align-items: center;">
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Engine:</span>
+          <select id="findings-engine-filter" class="form-control" style="width: 180px; font-size: 0.8rem; padding: 4px 8px;">
+            <option value="ALL">All Engines</option>
+            <option value="autonomy">Autonomy & HIR</option>
+            <option value="economics">Unit Economics</option>
+            <option value="evaluation">Evaluation Overhead</option>
+            <option value="dependencies">Dependencies & SPOF</option>
+            <option value="cascades">Failure Cascades</option>
+            <option value="tool_risk">Tool Security</option>
+            <option value="defensibility">Defensibility</option>
+            <option value="memo">Investment Committee</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Findings Cards Container -->
+    <div id="findings-cards-container">
+      <div style="text-align: center; padding: 40px; color: var(--text-muted);">Loading findings register...</div>
+    </div>
+  `;
+
+  async function loadFindings() {
+    const cardsContainer = document.getElementById("findings-cards-container");
+    if (!cardsContainer) return;
+
+    try {
+      let url = `/api/v1/projects/${compId}/findings?`;
+      if (activeSeverity !== "ALL") url += `severity=${activeSeverity}&`;
+      if (activeEngine !== "ALL") url += `engine_key=${activeEngine}&`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to load findings");
+      const findings = await res.json();
+
+      if (!findings || findings.length === 0) {
+        cardsContainer.innerHTML = `
+          <div class="panel-card" style="text-align: center; padding: 60px;">
+            <div style="font-size: 2.25rem; margin-bottom: var(--space-2);">🛡️</div>
+            <h3 style="margin-bottom: var(--space-2);">No Findings Matching Filter</h3>
+            <p style="color: var(--text-secondary); max-width: 480px; margin: 0 auto var(--space-4);">No active risks or anomalies logged matching the selected filter criteria. Run an assessment to execute analytical engines across all traces.</p>
+            <button class="btn btn-primary btn-sm" id="btn-findings-empty-run">▶ Run Diligence Assessment</button>
+          </div>
+        `;
+        const emptyRun = document.getElementById("btn-findings-empty-run");
+        if (emptyRun) emptyRun.addEventListener("click", triggerAssessment);
+        return;
+      }
+
+      cardsContainer.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+          ${findings.map(f => {
+            let badgeClass = "badge-info";
+            if (f.severity === "CRITICAL") badgeClass = "badge-danger";
+            else if (f.severity === "HIGH") badgeClass = "badge-warning";
+            else if (f.severity === "MEDIUM") badgeClass = "badge-info";
+
+            return `
+              <div class="card" style="border-left: 4px solid var(--color-${f.severity === 'CRITICAL' ? 'danger' : f.severity === 'HIGH' ? 'warning' : 'primary'});">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2);">
+                  <div style="display: flex; align-items: center; gap: var(--space-2);">
+                    <span class="badge ${badgeClass}">${f.severity}</span>
+                    <span class="badge badge-secondary font-mono" style="font-size: 0.725rem;">${f.engine_key}</span>
+                    <h3 style="margin: 0; font-size: 1.05rem;">${f.title}</h3>
+                  </div>
+                  <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">${f.created_at ? new Date(f.created_at).toLocaleDateString() : ""}</span>
+                </div>
+                <p style="margin-bottom: var(--space-3); color: var(--text-primary); font-size: 0.875rem; line-height: 1.5;">${f.description}</p>
+                ${f.recommendation ? `
+                  <div style="padding: var(--space-3); background: var(--bg-surface-2); border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--text-secondary); border: 1px solid var(--border-default);">
+                    <strong style="color: var(--text-primary);">Remediation Recommendation:</strong> ${f.recommendation}
+                  </div>
+                ` : ""}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } catch (err) {
+      cardsContainer.innerHTML = `<div class="panel-card" style="color: var(--color-danger); text-align: center; padding: 40px;">Failed to load findings: ${err.message}</div>`;
+    }
+  }
+
+  async function triggerAssessment() {
+    showToast("Executing diligence assessment across all 10 analytical engines...", "info");
+    try {
+      const res = await fetch(`/api/v1/projects/${compId}/assessments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trigger_type: "MANUAL" })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(`Assessment Complete! Status: ${data.status} (${(data.findings || []).length} findings, verdict: ${data.summary_verdict})`, "success");
+        await loadFindings();
+      } else {
+        throw new Error("Assessment failed");
+      }
+    } catch (err) {
+      showToast("Error: " + err.message, "danger");
+    }
+  }
+
+  const runBtn = document.getElementById("btn-findings-run-assessment");
+  if (runBtn) runBtn.addEventListener("click", triggerAssessment);
+
+  document.querySelectorAll(".filter-sev").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".filter-sev").forEach(b => {
+        b.classList.remove("btn-primary");
+        b.classList.add("btn-secondary");
+      });
+      btn.classList.remove("btn-secondary");
+      btn.classList.add("btn-primary");
+      activeSeverity = btn.getAttribute("data-sev");
+      loadFindings();
+    });
+  });
+
+  const engineSelect = document.getElementById("findings-engine-filter");
+  if (engineSelect) {
+    engineSelect.addEventListener("change", (e) => {
+      activeEngine = e.target.value;
+      loadFindings();
+    });
+  }
+
+  await loadFindings();
+}
+
+// ==============================================================================
 // VIEW CONTROLLER 15: DEAL MEMO & REPORTS (/app/projects/{id}/reports)
 // ==============================================================================
-function renderReportsView(container, compId) {
+async function renderReportsView(container, compId) {
   const p = currentPackageData || {};
   const memo = p.memo || {};
   const pkgFiles = p.package_files || {};
@@ -1386,12 +1830,13 @@ function renderReportsView(container, compId) {
   container.innerHTML = `
     <div style="margin-bottom: var(--space-6); display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: var(--space-4);">
       <div>
-        <h1 style="font-size: 1.75rem; margin-bottom: var(--space-1);">Investment Committee Memo & Audit Packages</h1>
+        <h1 style="font-size: 1.75rem; margin-bottom: var(--space-1);">Investment Committee Memo & Deliverables</h1>
         <p style="margin: 0; color: var(--text-secondary);">Executive diligence recommendation, red flag taxonomy, and verifiable bundle exports.</p>
       </div>
       <div style="display: flex; gap: var(--space-2);">
-        <a href="/api/v1/companies/${compId}/pdf" target="_blank" class="btn btn-primary btn-sm">📄 Download PDF Report</a>
-        <a href="/api/v1/companies/${compId}/package" target="_blank" class="btn btn-secondary btn-sm">📦 JSON Package</a>
+        <button class="btn btn-primary btn-sm" id="btn-generate-report-snapshot">
+          <span>📄</span> Generate New Report Snapshot
+        </button>
       </div>
     </div>
 
@@ -1404,7 +1849,7 @@ function renderReportsView(container, compId) {
       <p style="margin-bottom: var(--space-3); color: var(--text-primary); font-size: 0.95rem;">${memo.executive_verdict_summary || "Automated evaluation completed with findings."}</p>
     </div>
 
-    <!-- Red / Yellow / Green Flags -->
+    <!-- Red / Yellow Flags -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-8);">
       <div class="panel-card">
         <h4 style="color: var(--color-danger); margin-bottom: var(--space-3);">Critical Red Flags (${(memo.red_flags || []).length})</h4>
@@ -1433,7 +1878,86 @@ function renderReportsView(container, compId) {
         </div>
       </div>
     </div>
+
+    <!-- Persisted Deliverables History Table -->
+    <div class="panel-card">
+      <h3 style="margin-bottom: var(--space-3);">Persisted Diligence Deliverables & Snapshots</h3>
+      <div class="table-container">
+        <table class="data-table" id="table-reports-history">
+          <thead>
+            <tr>
+              <th>Deliverable Title</th>
+              <th>Verdict</th>
+              <th>Risk Score</th>
+              <th>Generated At</th>
+              <th style="text-align: right;">Download Formats</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-reports-history">
+            <tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);">Loading report history...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   `;
+
+  async function loadReportsHistory() {
+    const tbody = document.getElementById("tbody-reports-history");
+    if (!tbody) return;
+
+    try {
+      const res = await fetch(`/api/v1/projects/${compId}/reports`);
+      if (!res.ok) throw new Error("Failed to load reports");
+      const reports = await res.json();
+
+      if (!reports || reports.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px; color: var(--text-muted);">No reports compiled yet. Click "Generate New Report Snapshot" above.</td></tr>';
+      } else {
+        tbody.innerHTML = reports.map(r => `
+          <tr>
+            <td><strong>${r.title || "Technical Diligence Report"}</strong></td>
+            <td><span class="badge ${r.deal_verdict === 'BUY' ? 'badge-success' : 'badge-warning'}">${r.deal_verdict || "CONDITIONAL"}</span></td>
+            <td class="font-mono">${r.risk_score != null ? r.risk_score + " / 100" : "--"}</td>
+            <td style="font-size: 0.8rem; color: var(--text-secondary);">${r.created_at ? new Date(r.created_at).toLocaleString() : "--"}</td>
+            <td style="text-align: right; white-space: nowrap;">
+              <a href="${r.pdf_download_url}" target="_blank" class="btn btn-outline btn-sm" style="margin-left: 4px;">PDF</a>
+              <a href="${r.json_download_url}" target="_blank" class="btn btn-outline btn-sm" style="margin-left: 4px;">JSON</a>
+              <a href="${r.bundle_download_url}" target="_blank" class="btn btn-primary btn-sm" style="margin-left: 4px;">ZIP Bundle</a>
+              <a href="${r.manifest_download_url}" target="_blank" class="btn btn-outline btn-sm" style="margin-left: 4px;">Manifest</a>
+            </td>
+          </tr>
+        `).join('');
+      }
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--color-danger); padding: 20px;">Error loading reports: ${err.message}</td></tr>`;
+    }
+  }
+
+  const genBtn = document.getElementById("btn-generate-report-snapshot");
+  if (genBtn) {
+    genBtn.addEventListener("click", async () => {
+      genBtn.disabled = true;
+      genBtn.innerText = "Compiling Deliverables...";
+      showToast("Compiling board-ready PDF, CycloneDX AIBOM, and verifiable signed bundle...", "info");
+      try {
+        const res = await fetch(`/api/v1/projects/${compId}/reports`, { method: "POST" });
+        if (res.ok) {
+          const rep = await res.json();
+          showToast(`Report compiled successfully! ID: ${rep.report_id.substring(0, 8)}...`, "success");
+          await loadReportsHistory();
+        } else {
+          throw new Error("Compilation failed");
+        }
+      } catch (err) {
+        showToast("Error generating report: " + err.message, "danger");
+      } finally {
+        genBtn.disabled = false;
+        genBtn.innerText = "📄 Generate New Report Snapshot";
+      }
+    });
+  }
+
+  await loadReportsHistory();
 }
 
 // ==============================================================================
@@ -1530,6 +2054,11 @@ function setupUploadModal() {
   const submitBtn = document.getElementById("btn-submit-upload");
   const textarea = document.getElementById("textarea-traces");
   const feedback = document.getElementById("upload-feedback");
+  const dropzone = document.getElementById("dropzone-upload");
+  const fileInput = document.getElementById("file-input-upload");
+  const fileNameDisplay = document.getElementById("dropzone-file-name");
+
+  let selectedFile = null;
 
   if (!modal) return;
 
@@ -1540,42 +2069,113 @@ function setupUploadModal() {
     });
   }
 
-  const close = () => modal.classList.remove("open");
+  const close = () => {
+    modal.classList.remove("open");
+    selectedFile = null;
+    if (fileInput) fileInput.value = "";
+    if (fileNameDisplay) {
+      fileNameDisplay.style.display = "none";
+      fileNameDisplay.innerText = "";
+    }
+  };
   if (closeBtn) closeBtn.addEventListener("click", close);
   if (cancelBtn) cancelBtn.addEventListener("click", close);
 
+  // Drag and Drop handlers
+  if (dropzone && fileInput) {
+    dropzone.addEventListener("click", () => fileInput.click());
+
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = "var(--color-primary)";
+      dropzone.style.background = "var(--bg-surface-3)";
+    });
+
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.style.borderColor = "var(--border-default)";
+      dropzone.style.background = "var(--bg-surface-2)";
+    });
+
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.style.borderColor = "var(--border-default)";
+      dropzone.style.background = "var(--bg-surface-2)";
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFileSelect(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput.addEventListener("change", () => {
+      if (fileInput.files && fileInput.files.length > 0) {
+        handleFileSelect(fileInput.files[0]);
+      }
+    });
+  }
+
+  function handleFileSelect(file) {
+    selectedFile = file;
+    if (fileNameDisplay) {
+      const sizeKb = (file.size / 1024).toFixed(1);
+      fileNameDisplay.innerText = `Selected: ${file.name} (${sizeKb} KB)`;
+      fileNameDisplay.style.display = "block";
+    }
+    if (textarea) textarea.value = "";
+  }
+
   if (submitBtn) {
     submitBtn.addEventListener("click", async () => {
-      const rawText = textarea.value.trim();
-      if (!rawText) {
-        alert("Please paste a valid OpenTelemetry JSON payload.");
+      const rawText = textarea ? textarea.value.trim() : "";
+      if (!selectedFile && !rawText) {
+        alert("Please choose a JSON/JSONL telemetry file or paste raw JSON trace payload.");
         return;
       }
 
-      submitBtn.innerText = "Ingesting...";
+      const targetId = currentCompanyId || "default";
+      const ingestUrl = `/api/v1/projects/${targetId}/ingest`;
+
+      submitBtn.innerText = "Ingesting & Verifying...";
       submitBtn.disabled = true;
+      if (feedback) feedback.style.display = "none";
 
       try {
-        const parsed = JSON.parse(rawText);
-        const url = `/v1/traces${currentCompanyId ? '?company_id=' + currentCompanyId : ''}`;
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(parsed)
-        });
+        let res;
+        if (selectedFile) {
+          const formData = new FormData();
+          formData.append("file", selectedFile);
+          res = await fetch(ingestUrl, {
+            method: "POST",
+            body: formData
+          });
+        } else {
+          let parsed;
+          try {
+            parsed = JSON.parse(rawText);
+          } catch (e) {
+            throw new Error("Invalid JSON: Please ensure pasted text is valid JSON syntax.");
+          }
+          res = await fetch(ingestUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(parsed)
+          });
+        }
 
         const data = await res.json();
         if (res.ok) {
-          showToast(`Ingestion Success! ${data.spans_count || 1} spans anchored.`, "success");
+          if (data.status === "DUPLICATE") {
+            showToast(`Duplicate Payload: SHA-256 fingerprint already indexed (${data.payload_hash.substring(0, 8)}...).`, "warning");
+          } else {
+            showToast(`Ingestion Success! Ingested ${data.spans_count || 1} spans across ${data.traces_count || 1} traces.`, "success");
+          }
           close();
-          textarea.value = "";
+          if (textarea) textarea.value = "";
           await loadCompaniesList();
           if (currentCompanyId) {
             currentPackageData = null;
             handleRoute(window.location.pathname);
           }
         } else {
-          throw new Error(data.error || "Ingestion rejected by server");
+          throw new Error(data.detail || data.error || "Ingestion rejected by server");
         }
       } catch (err) {
         if (feedback) {

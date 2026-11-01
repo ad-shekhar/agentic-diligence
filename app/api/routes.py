@@ -1,9 +1,10 @@
 import os
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, Body, Query
+from fastapi import APIRouter, Depends, HTTPException, Body, Query, UploadFile, File, Request
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
+from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.db.models import Company, Tenant, Claim, Report
@@ -68,14 +69,317 @@ def list_companies(db: Session = Depends(get_db)):
     return results
 
 
+# ==============================================================================
+# PHASE 9: PROJECT LIFECYCLE MANAGEMENT ENDPOINTS
+# ==============================================================================
+
+@router.post("/projects", status_code=201)
+def create_project_route(payload: Dict[str, Any] = Body(...), db: Session = Depends(get_db)):
+    """Creates a new diligence project for a target system."""
+    try:
+        from app.projects.service import create_project
+        name = payload.get("name")
+        target_name = payload.get("target_name") or payload.get("target_system") or name
+        if not name:
+            raise HTTPException(status_code=400, detail="Project 'name' is required.")
+        project = create_project(
+            db=db,
+            name=name,
+            target_name=target_name,
+            target_system=payload.get("target_system"),
+            target_type=payload.get("target_type", "autonomous_agent"),
+            framework=payload.get("framework"),
+            description=payload.get("description"),
+            assessment_scope=payload.get("assessment_scope"),
+            evaluation_objective=payload.get("evaluation_objective"),
+            tenant_id=payload.get("tenant_id")
+        )
+        return {
+            "id": project.id,
+            "company_id": project.company_id,
+            "name": project.name,
+            "target_system": project.target_system,
+            "status": project.status,
+            "created_at": project.created_at.isoformat() if project.created_at else None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/projects")
+def list_projects_route(
+    status: Optional[str] = Query(None),
+    search: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Lists all diligence projects in the workspace."""
+    from app.projects.service import list_projects
+    return list_projects(db, status=status, search=search)
+
+@router.get("/projects/{project_id}")
+def get_project_route(project_id: str, db: Session = Depends(get_db)):
+    """Retrieves single project details with target metadata and stats."""
+    from app.projects.service import get_project_by_id_or_company
+    project = get_project_by_id_or_company(db, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
+    
+    comp = project.company
+    trace_count = len(comp.traces) if comp and comp.traces else 0
+    return {
+        "id": project.id,
+        "company_id": project.company_id,
+        "name": project.name,
+        "target_name": comp.name if comp else project.target_system,
+        "target_system": project.target_system,
+        "target_type": project.target_type,
+        "framework": project.framework,
+        "description": project.description,
+        "assessment_scope": project.assessment_scope,
+        "evaluation_objective": project.evaluation_objective,
+        "status": project.status,
+        "trace_count": trace_count,
+        "created_at": project.created_at.isoformat() if project.created_at else None,
+        "updated_at": project.updated_at.isoformat() if project.updated_at else None,
+    }
+
+@router.patch("/projects/{project_id}")
+def update_project_route(project_id: str, payload: Dict[str, Any] = Body(...), db: Session = Depends(get_db)):
+    """Updates editable project metadata."""
+    from app.projects.service import update_project
+    try:
+        updated = update_project(db, project_id, payload)
+        return {
+            "id": updated.id,
+            "name": updated.name,
+            "target_system": updated.target_system,
+            "status": updated.status,
+            "updated_at": updated.updated_at.isoformat() if updated.updated_at else None,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/projects/{project_id}/archive")
+def archive_project_route(project_id: str, db: Session = Depends(get_db)):
+    """Soft-archives a diligence project."""
+    from app.projects.service import archive_project
+    try:
+        archived = archive_project(db, project_id)
+        return {"id": archived.id, "status": archived.status, "message": "Project archived successfully"}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/projects/{project_id}/activity")
+def get_project_activity_route(project_id: str, db: Session = Depends(get_db)):
+    """Retrieves chronological activity timeline for a project."""
+    from app.projects.service import get_project_activities, get_project_by_id_or_company
+    project = get_project_by_id_or_company(db, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project '{project_id}' not found.")
+    return get_project_activities(db, project.id)
+
+
+@router.post("/projects/{project_id}/ingest")
+async def ingest_project_telemetry_route(
+    project_id: str,
+    request: Request,
+    db: Session = Depends(get_db)
+):
+    """
+    Ingests telemetry traces from an uploaded file (.json, .jsonl) or direct JSON body.
+    Binds data to project scope, checks for duplicate hashes, and records an IngestionJob.
+    """
+    from app.ingestion.service import ingest_project_telemetry
+    import json
+    try:
+        content_type = request.headers.get("content-type", "").lower()
+        if "multipart/form-data" in content_type:
+            form = await request.form()
+            file_field = form.get("file")
+            if not file_field:
+                raise HTTPException(status_code=400, detail="Missing 'file' field in multipart form upload.")
+            raw_bytes = await file_field.read()
+            filename = getattr(file_field, "filename", "telemetry.json") or "telemetry.json"
+        else:
+            raw_bytes = await request.body()
+            filename = "direct_payload.json"
+
+        if not raw_bytes:
+            raise HTTPException(status_code=400, detail="Must provide either an uploaded file or JSON payload.")
+
+        result = ingest_project_telemetry(
+            db=db,
+            project_identifier=project_id,
+            raw_bytes=raw_bytes,
+            filename=filename
+        )
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/projects/{project_id}/ingestion-jobs")
+def get_project_ingestion_jobs_route(project_id: str, db: Session = Depends(get_db)):
+    """Retrieves ingestion job history for a project."""
+    from app.ingestion.service import list_project_ingestion_jobs
+    return list_project_ingestion_jobs(db, project_id)
+
+@router.get("/projects/{project_id}/evidence")
+def get_project_evidence_route(project_id: str, db: Session = Depends(get_db)):
+    """Returns evidence records and cryptographic provenance digests for a project."""
+    from app.ingestion.service import list_project_evidence_records
+    return list_project_evidence_records(db, project_id)
+
+
+class AssessmentRunRequest(BaseModel):
+    selected_engines: Optional[List[str]] = None
+    trigger_type: Optional[str] = "MANUAL"
+    config: Optional[Dict[str, Any]] = None
+
+
+@router.post("/projects/{project_id}/assessments")
+def run_project_assessment_route(
+    project_id: str,
+    payload: Optional[AssessmentRunRequest] = Body(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Executes a comprehensive diligence assessment run across analytical engines.
+    Isolates engine failures, extracts structured findings, and records execution audit trail.
+    """
+    from app.assessment.orchestrator import AssessmentOrchestrator, get_assessment_details
+    selected_engines = payload.selected_engines if payload else None
+    trigger_type = payload.trigger_type if payload and payload.trigger_type else "MANUAL"
+    config = payload.config if payload else None
+    try:
+        assessment = AssessmentOrchestrator.execute_assessment(
+            db=db,
+            project_identifier=project_id,
+            selected_engines=selected_engines,
+            trigger_type=trigger_type,
+            config=config
+        )
+        return get_assessment_details(db, assessment.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/projects/{project_id}/assessments")
+def list_project_assessments_route(project_id: str, db: Session = Depends(get_db)):
+    """Lists historical assessment execution runs for a project."""
+    from app.assessment.orchestrator import list_project_assessments
+    return list_project_assessments(db, project_id)
+
+
+@router.get("/assessments/{assessment_id}")
+def get_assessment_details_route(assessment_id: str, db: Session = Depends(get_db)):
+    """Retrieves full details for a specific assessment run, including engine executions and findings."""
+    from app.assessment.orchestrator import get_assessment_details
+    details = get_assessment_details(db, assessment_id)
+    if not details:
+        raise HTTPException(status_code=404, detail=f"Assessment '{assessment_id}' not found.")
+    return details
+
+
+@router.get("/projects/{project_id}/findings")
+def list_project_findings_route(
+    project_id: str,
+    severity: Optional[str] = Query(None),
+    engine_key: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Lists findings across assessments for a project with optional severity and engine filters."""
+    from app.assessment.orchestrator import list_project_findings
+    return list_project_findings(db, project_id, severity=severity, engine_key=engine_key)
+
+
+@router.post("/projects/{project_id}/reports")
+def generate_project_report_route(
+    project_id: str,
+    assessment_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Generates and persists an immutable due diligence report snapshot with deliverables."""
+    from app.reporting.service import generate_project_report
+    try:
+        return generate_project_report(db, project_id, assessment_id=assessment_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/assessments/{assessment_id}/report")
+def generate_assessment_report_route(assessment_id: str, db: Session = Depends(get_db)):
+    """Generates a persisted diligence report snapshot linked directly to a completed assessment."""
+    from app.reporting.service import generate_project_report
+    from app.db.models import Assessment
+    ass = db.query(Assessment).filter(Assessment.id == assessment_id).first()
+    if not ass:
+        raise HTTPException(status_code=404, detail=f"Assessment '{assessment_id}' not found.")
+    try:
+        return generate_project_report(db, ass.project_id, assessment_id=assessment_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/projects/{project_id}/reports")
+def list_project_reports_route(project_id: str, db: Session = Depends(get_db)):
+    """Lists all historical report snapshots for a project."""
+    from app.reporting.service import list_project_reports
+    return list_project_reports(db, project_id)
+
+
+@router.get("/reports/{report_id}/download")
+def download_report_artifact_route(
+    report_id: str,
+    format: str = Query("pdf", pattern="^(pdf|json|bundle|manifest)$"),
+    db: Session = Depends(get_db)
+):
+    """Downloads or exports report deliverables (pdf, json, bundle, manifest)."""
+    from app.reporting.service import get_report_download_artifact
+    try:
+        artifact = get_report_download_artifact(db, report_id, format=format)
+        if artifact["type"] == "file":
+            return FileResponse(
+                artifact["path"],
+                media_type=artifact["media_type"],
+                filename=artifact["filename"]
+            )
+        elif artifact["type"] == "json":
+            return JSONResponse(
+                content=artifact["data"],
+                headers={"Content-Disposition": f'attachment; filename="{artifact["filename"]}"'}
+            )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
 @router.get("/companies/{company_id}/package")
 def get_diligence_package(company_id: str, db: Session = Depends(get_db)):
-    """Returns standardized diligence package for a company."""
+    """Returns standardized diligence package for a company or project."""
     try:
-        report = db.query(Report).filter(Report.company_id == company_id).order_by(Report.created_at.desc()).first()
+        from app.projects.service import get_project_by_id_or_company
+        proj = get_project_by_id_or_company(db, company_id)
+        target_comp_id = proj.company_id if proj else company_id
+
+        report = db.query(Report).filter(Report.company_id == target_comp_id).order_by(Report.created_at.desc()).first()
         if report and report.summary_json:
             return report.summary_json
-        return build_due_diligence_report(db, company_id)
+        return build_due_diligence_report(db, target_comp_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

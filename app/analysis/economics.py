@@ -32,6 +32,7 @@ def analyze_unit_economics(db: Session, company_id: str) -> Dict[str, Any]:
             "total_measured_cost_usd": 0.0,
             "telemetry_attributable_cost_per_task_usd": 0.0,
             "cost_status": CostStatus.NOT_ESTABLISHED.value,
+            "overall_cost_status": CostStatus.NOT_ESTABLISHED.value,
             "cost_breakdown": {},
             "latency_ms": {"p50": 0, "p95": 0, "p99": 0}
         }

@@ -164,3 +164,4 @@ In `app/db/session.py`:
 2. **Key Rotation:** Rotate keys by creating a new key with the same tenant/company scope, updating client headers, and setting `is_active=False` on the retired key.
 3. **Database Maintenance:** For production workloads, periodically execute `PRAGMA wal_checkpoint(TRUNCATE);` during maintenance windows to maintain compact WAL file sizes.
 4. **PostgreSQL Migration Path:** The models (`TenantApiKey`, `DurableEvidenceRecord`) use standard SQLAlchemy constructs compatible with PostgreSQL. When transitioning from SQLite to PostgreSQL, simply change `DATABASE_URL` in `.env` without modifying business logic.
+

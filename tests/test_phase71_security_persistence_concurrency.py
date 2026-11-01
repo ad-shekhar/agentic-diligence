@@ -420,3 +420,4 @@ class TestMilestoneCConcurrency:
         assert len(read_counts) > 0
         final_recs = registry.get_records(company_id=company_id, db=test_db)
         assert len(final_recs) == 15
+

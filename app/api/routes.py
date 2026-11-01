@@ -50,6 +50,24 @@ def run_benchmark_scenario(scenario_name: str = "scenario_a", sample_size: int =
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/companies")
+def list_companies(db: Session = Depends(get_db)):
+    """Returns list of all target companies / diligence evaluations in the workspace catalog."""
+    companies = db.query(Company).order_by(Company.created_at.desc()).all()
+    results = []
+    for c in companies:
+        trace_count = len(c.traces)
+        results.append({
+            "id": c.id,
+            "name": c.name,
+            "domain": c.domain,
+            "created_at": c.created_at.isoformat() if c.created_at else None,
+            "trace_count": trace_count,
+            "status": "COMPLETED" if trace_count > 0 else "READY",
+        })
+    return results
+
+
 @router.get("/companies/{company_id}/package")
 def get_diligence_package(company_id: str, db: Session = Depends(get_db)):
     """Returns standardized diligence package for a company."""

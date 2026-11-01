@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How It Works — Technical Methodology | Agentic Diligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/design-system.css">
+</head>
+<body class="public-page">
+
+  <header class="public-nav">
+    <a href="/" class="public-nav-brand">
+      <div class="brand-icon">⬡</div>
+      <span>AGENTIC DILIGENCE</span>
+    </a>
+    <ul class="public-nav-links">
+      <li><a href="/product">Product</a></li>
+      <li><a href="/capabilities">Capabilities</a></li>
+      <li><a href="/how-it-works" class="active">How It Works</a></li>
+      <li><a href="/trust">Trust & Security</a></li>
+      <li><a href="/docs">Documentation</a></li>
+    </ul>
+    <div style="display: flex; align-items: center; gap: var(--space-3);">
+      <a href="/app" class="btn btn-secondary btn-sm">Enter Workspace</a>
+      <a href="/get-started" class="btn btn-primary btn-sm">Get Started →</a>
+    </div>
+  </header>
+
+  <main class="public-container" style="padding-top: var(--space-12);">
+    <div style="max-width: 800px; margin-bottom: var(--space-12);">
+      <div class="badge badge-success" style="margin-bottom: var(--space-3);">METHODOLOGY & PIPELINE</div>
+      <h1 style="font-size: 2.75rem; margin-bottom: var(--space-4);">From Raw Telemetry to Verifiable Investment Verdicts</h1>
+      <p style="font-size: 1.15rem; line-height: 1.6;">
+        A 4-stage pipeline that eliminates subjective speculation through empirical software flight recorder logs, deterministic mathematics, and cryptographic non-repudiation.
+      </p>
+    </div>
+
+    <!-- Step 1: Connect -->
+    <div style="display: flex; gap: var(--space-8); margin-bottom: var(--space-12); flex-wrap: wrap;">
+      <div style="flex: 0 0 60px;">
+        <div style="width: 50px; height: 50px; border-radius: var(--radius-full); background: var(--accent-primary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 700;">1</div>
+      </div>
+      <div style="flex: 1; min-width: 300px;">
+        <h2>Stage 1: Connect & Ingest Telemetry</h2>
+        <p style="margin-top: var(--space-2); margin-bottom: var(--space-4);">
+          The target agent system streams execution traces into Agentic Diligence via standard OpenTelemetry GenAI protocols or out-of-process proxies.
+        </p>
+        <div class="card" style="background: var(--bg-surface-2);">
+          <h4 style="margin-bottom: var(--space-2);">Pre-Parsing Provenance Guarantee</h4>
+          <p style="font-size: 0.85rem; margin-bottom: var(--space-3);">
+            Before JSON deserialization occurs, the exact incoming byte stream is digested with SHA-256. This fingerprint is stored in <code>payload_provenance</code>, ensuring an immutable chain of custody that cannot be repudiated.
+          </p>
+          <div style="font-family: var(--font-mono); font-size: 0.775rem; color: var(--accent-primary);">
+            POST /v1/traces -> SHA-256(raw_bytes) -> Store PayloadProvenance
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Analyze -->
+    <div style="display: flex; gap: var(--space-8); margin-bottom: var(--space-12); flex-wrap: wrap;">
+      <div style="flex: 0 0 60px;">
+        <div style="width: 50px; height: 50px; border-radius: var(--radius-full); background: var(--accent-secondary); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 700;">2</div>
+      </div>
+      <div style="flex: 1; min-width: 300px;">
+        <h2>Stage 2: Normalize & Segment Tasks</h2>
+        <p style="margin-top: var(--space-2); margin-bottom: var(--space-4);">
+          Raw spans from LangChain, CrewAI, AutoGen, or custom agents are normalized to OpenTelemetry GenAI v1.28.0 standards.
+        </p>
+        <div class="card" style="background: var(--bg-surface-2);">
+          <h4 style="margin-bottom: var(--space-2);">Task Gap Analysis & Reaction Latency Heuristic</h4>
+          <p style="font-size: 0.85rem; margin-bottom: var(--space-3);">
+            Spans are clustered into atomic tasks. Inter-span latencies exceeding the threshold (e.g. >30s) are analyzed to distinguish autonomous computing delays from human intervention pauses. Gaps without telemetry are categorized as <code>[UNKNOWN]</code>, preventing missing data from being counted as success.
+          </p>
+          <div style="font-family: var(--font-mono); font-size: 0.775rem; color: var(--accent-secondary);">
+            NormalizedSpan -> segment_trace() -> compute_diligence_metrics()
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Verify -->
+    <div style="display: flex; gap: var(--space-8); margin-bottom: var(--space-12); flex-wrap: wrap;">
+      <div style="flex: 0 0 60px;">
+        <div style="width: 50px; height: 50px; border-radius: var(--radius-full); background: var(--color-warning); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 700;">3</div>
+      </div>
+      <div style="flex: 1; min-width: 300px;">
+        <h2>Stage 3: Mathematically Verify Claims</h2>
+        <p style="margin-top: var(--space-2); margin-bottom: var(--space-4);">
+          Stated claims from founder pitch decks, investor memos, and vendor SLAs are translated into formal schemas (operator, target threshold, unit).
+        </p>
+        <div class="card" style="background: var(--bg-surface-2);">
+          <h4 style="margin-bottom: var(--space-2);">Bounded Epistemic Evaluation</h4>
+          <p style="font-size: 0.85rem; margin-bottom: var(--space-3);">
+            The claim verifier computes statistical lower and upper confidence bounds. If an observed metric falls short of the target direction or has insufficient telemetry sample size (n &lt; 15), it emits a <code>CONTRADICTED</code> or <code>INSUFFICIENT_EVIDENCE</code> verdict with full mathematical explanations.
+          </p>
+          <div style="font-family: var(--font-mono); font-size: 0.775rem; color: var(--color-warning);">
+            ClaimSchema vs. EpistemicValue[lower, point, upper] -> Verdict
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Decide -->
+    <div style="display: flex; gap: var(--space-8); margin-bottom: var(--space-16); flex-wrap: wrap;">
+      <div style="flex: 0 0 60px;">
+        <div style="width: 50px; height: 50px; border-radius: var(--radius-full); background: var(--color-success); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; font-weight: 700;">4</div>
+      </div>
+      <div style="flex: 1; min-width: 300px;">
+        <h2>Stage 4: Decide & Compile Evidence Package</h2>
+        <p style="margin-top: var(--space-2); margin-bottom: var(--space-4);">
+          Compiles all findings into board-ready deliverables and cryptographic verification archives.
+        </p>
+        <div class="card" style="background: var(--bg-surface-2);">
+          <h4 style="margin-bottom: var(--space-2);">Tamper-Proof Manifest Packaging</h4>
+          <p style="font-size: 0.85rem; margin-bottom: var(--space-3);">
+            Packages the Executive IC Memo, CycloneDX 1.6 AI-BOM, claim matrix, and raw traces into a verifiable <code>.zip</code> bundle anchored by RFC 8785 canonical JSON <code>manifest.json</code>. An independent auditor can verify the entire bundle integrity via CLI or API.
+          </p>
+          <div style="font-family: var(--font-mono); font-size: 0.775rem; color: var(--color-success);">
+            compile_diligence_bundle_on_disk() -> verify_bundle_integrity()
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom CTA -->
+    <div class="card" style="text-align: center; padding: var(--space-10);">
+      <h2>See the Methodology in Action</h2>
+      <p style="margin: var(--space-2) auto var(--space-6);">Run a benchmark audit or explore the live technical due diligence workspace.</p>
+      <div style="display: flex; justify-content: center; gap: var(--space-4);">
+        <a href="/app" class="btn btn-primary btn-lg">Launch Workspace</a>
+        <a href="/trust" class="btn btn-secondary btn-lg">Read Trust & Security Architecture</a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="public-footer">
+    <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+      <span>© 2026 Agentic Diligence (AGD). OpenTelemetry GenAI Semantic Conventions v1.28.0.</span>
+      <a href="/trust">Next: Trust & Security →</a>
+    </div>
+  </footer>
+
+</body>
+</html>

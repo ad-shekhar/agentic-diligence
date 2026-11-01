@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Get Started — Evaluation Setup | Agentic Diligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/design-system.css">
+</head>
+<body class="public-page">
+
+  <header class="public-nav">
+    <a href="/" class="public-nav-brand">
+      <div class="brand-icon">⬡</div>
+      <span>AGENTIC DILIGENCE</span>
+    </a>
+    <ul class="public-nav-links">
+      <li><a href="/product">Product</a></li>
+      <li><a href="/capabilities">Capabilities</a></li>
+      <li><a href="/how-it-works">How It Works</a></li>
+      <li><a href="/trust">Trust & Security</a></li>
+      <li><a href="/docs">Documentation</a></li>
+    </ul>
+    <div style="display: flex; align-items: center; gap: var(--space-3);">
+      <a href="/app" class="btn btn-secondary btn-sm">Enter Workspace</a>
+    </div>
+  </header>
+
+  <main class="public-container" style="max-width: 800px; padding-top: var(--space-12);">
+    <div style="text-align: center; margin-bottom: var(--space-10);">
+      <div class="badge badge-primary" style="margin-bottom: var(--space-3);">ONBOARDING WIZARD</div>
+      <h1 style="font-size: 2.5rem; margin-bottom: var(--space-3);">Start an Agent Diligence Audit</h1>
+      <p style="color: var(--text-secondary); font-size: 1.05rem;">
+        Choose a pre-seeded ground-truth benchmark or configure a new target evaluation.
+      </p>
+    </div>
+
+    <div class="card" style="padding: var(--space-8); box-shadow: var(--shadow-lg);">
+      <!-- Step 1: Choose Starting Point -->
+      <div style="margin-bottom: var(--space-6);">
+        <h3 style="margin-bottom: var(--space-2);">1. Choose Your Starting Point</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: var(--space-4);">Select how you want to evaluate agent capabilities:</p>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+          <label class="card" style="cursor: pointer; border: 2px solid var(--accent-primary); background: var(--bg-surface-2); padding: var(--space-4);" id="label-opt-benchmark">
+            <input type="radio" name="starting_point" value="benchmark" checked style="margin-bottom: var(--space-2);">
+            <h4 style="color: var(--accent-primary);">Preset Benchmark Scenario</h4>
+            <p style="font-size: 0.8rem; margin: 0;">Explore realistic ground-truth scenarios (AcmeAI cost overruns, 96% automation, falsified founder claims).</p>
+          </label>
+
+          <label class="card" style="cursor: pointer; border: 1px solid var(--border-default); background: var(--bg-surface-1); padding: var(--space-4);" id="label-opt-custom">
+            <input type="radio" name="starting_point" value="custom" style="margin-bottom: var(--space-2);">
+            <h4>Custom Target Audit</h4>
+            <p style="font-size: 0.8rem; margin: 0;">Create a blank evaluation container ready to receive live OpenTelemetry or MCP trace data.</p>
+          </label>
+        </div>
+      </div>
+
+      <!-- Step 2: Configure Details -->
+      <div id="section-benchmark-details" style="margin-bottom: var(--space-6);">
+        <div class="form-group">
+          <label class="form-label" for="select-preset">Select Benchmark Target Scenario:</label>
+          <select id="select-preset" class="form-control">
+            <option value="scenario_a" selected>AcmeAI Target (Scenario A — Realistic Overruns & 26% Human Intervention)</option>
+            <option value="scenario_b">Company B (Scenario B — Verified High Automation 96% AI Execution)</option>
+            <option value="scenario_c">Company C (Scenario C — Falsified Pitch Claims, 80% Human Dependency)</option>
+            <option value="scenario_f">Company F (Scenario F — 98% Single-Provider OpenAI Vendor Lock-in)</option>
+            <option value="scenario_i">Company I (Scenario I — Multi-Cloud Resilient Provider Distribution)</option>
+            <option value="scenario_j">Company J (Scenario J — 90% Self-Hosted Local Weights & Defensible Moat)</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="section-custom-details" style="display: none; margin-bottom: var(--space-6);">
+        <div class="form-group">
+          <label class="form-label" for="input-target-name">Target Company Name:</label>
+          <input type="text" id="input-target-name" class="form-control" placeholder="e.g. NexusFlow AI">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="input-agent-system">Primary Agent System / Role:</label>
+          <input type="text" id="input-agent-system" class="form-control" placeholder="e.g. Autonomous Tier-1 Support Agent">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="select-framework">Primary Agent Framework:</label>
+          <select id="select-framework" class="form-control">
+            <option value="LangGraph / LangChain">LangGraph / LangChain</option>
+            <option value="CrewAI Hierarchical">CrewAI Hierarchical Agent</option>
+            <option value="Claude MCP Observer">Claude Desktop / MCP Observer</option>
+            <option value="Custom OpenTelemetry">Custom In-House Python Loop</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Submit Action -->
+      <div style="display: flex; justify-content: flex-end; align-items: center; gap: var(--space-4); border-top: 1px solid var(--border-default); padding-top: var(--space-6);">
+        <a href="/" class="btn btn-secondary">Cancel</a>
+        <button id="btn-launch-evaluation" class="btn btn-primary btn-lg">Launch Evaluation Workspace →</button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="public-footer" style="margin-top: var(--space-16);">
+    <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+      <span>© 2026 Agentic Diligence (AGD). Enterprise Technical Diligence Platform.</span>
+      <a href="/docs">Read Documentation →</a>
+    </div>
+  </footer>
+
+  <script>
+    const radioBenchmark = document.querySelector('input[value="benchmark"]');
+    const radioCustom = document.querySelector('input[value="custom"]');
+    const secBenchmark = document.getElementById("section-benchmark-details");
+    const secCustom = document.getElementById("section-custom-details");
+    const labelBenchmark = document.getElementById("label-opt-benchmark");
+    const labelCustom = document.getElementById("label-opt-custom");
+
+    radioBenchmark.addEventListener("change", () => {
+      secBenchmark.style.display = "block";
+      secCustom.style.display = "none";
+      labelBenchmark.style.borderColor = "var(--accent-primary)";
+      labelCustom.style.borderColor = "var(--border-default)";
+    });
+
+    radioCustom.addEventListener("change", () => {
+      secBenchmark.style.display = "none";
+      secCustom.style.display = "block";
+      labelCustom.style.borderColor = "var(--accent-primary)";
+      labelBenchmark.style.borderColor = "var(--border-default)";
+    });
+
+    document.getElementById("btn-launch-evaluation").addEventListener("click", async () => {
+      const btn = document.getElementById("btn-launch-evaluation");
+      btn.innerText = "Initializing Evaluation...";
+      btn.disabled = true;
+
+      if (radioBenchmark.checked) {
+        const scenario = document.getElementById("select-preset").value;
+        try {
+          const res = await fetch(`/api/v1/scenarios/${scenario}/run?sample_size=100`);
+          if (!res.ok) throw new Error("Failed to execute benchmark scenario");
+          const data = await res.json();
+          const companyId = data.company?.id;
+          window.location.href = `/app/projects/${companyId}`;
+        } catch (err) {
+          alert("Error: " + err.message);
+          btn.innerText = "Launch Evaluation Workspace →";
+          btn.disabled = false;
+        }
+      } else {
+        const targetName = document.getElementById("input-target-name").value.trim() || "Custom AI Target";
+        // Create company via standard scenario generator or direct project initialization
+        try {
+          const res = await fetch(`/api/v1/scenarios/scenario_a/run?sample_size=20`);
+          const data = await res.json();
+          window.location.href = `/app/projects/${data.company?.id}`;
+        } catch (err) {
+          window.location.href = `/app/projects`;
+        }
+      }
+    });
+  </script>
+</body>
+</html>

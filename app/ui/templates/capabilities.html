@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytical Capabilities | Agentic Diligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/design-system.css">
+</head>
+<body class="public-page">
+
+  <header class="public-nav">
+    <a href="/" class="public-nav-brand">
+      <div class="brand-icon">⬡</div>
+      <span>AGENTIC DILIGENCE</span>
+    </a>
+    <ul class="public-nav-links">
+      <li><a href="/product">Product</a></li>
+      <li><a href="/capabilities" class="active">Capabilities</a></li>
+      <li><a href="/how-it-works">How It Works</a></li>
+      <li><a href="/trust">Trust & Security</a></li>
+      <li><a href="/docs">Documentation</a></li>
+    </ul>
+    <div style="display: flex; align-items: center; gap: var(--space-3);">
+      <a href="/app" class="btn btn-secondary btn-sm">Enter Workspace</a>
+      <a href="/get-started" class="btn btn-primary btn-sm">Get Started →</a>
+    </div>
+  </header>
+
+  <main class="public-container" style="padding-top: var(--space-12);">
+    <div style="max-width: 800px; margin-bottom: var(--space-12);">
+      <div class="badge badge-primary" style="margin-bottom: var(--space-3);">ANALYTICAL DEPTH</div>
+      <h1 style="font-size: 2.75rem; margin-bottom: var(--space-4);">Ten Specialized Diligence Engines</h1>
+      <p style="font-size: 1.15rem; line-height: 1.6;">
+        Every module is backed by deterministic mathematical formulas, explicit epistemic bounds, and reproducible evidence references.
+      </p>
+    </div>
+
+    <!-- Pillar 1: Performance & Autonomy -->
+    <section style="margin-bottom: var(--space-12);">
+      <div style="border-bottom: 2px solid var(--accent-primary); padding-bottom: var(--space-2); margin-bottom: var(--space-6); display: flex; align-items: baseline; justify-content: space-between;">
+        <h2>1. Performance & Autonomy Intelligence</h2>
+        <span style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Runtime Execution</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-6);">
+        <div class="card">
+          <h4>Autonomy & Human Intervention Rate</h4>
+          <p>Measures the exact percentage of workflows completed 100% autonomously vs. those requiring human staff assistance. Classifies interventions into explicit human telemetry spans and inferred reaction-latency anomalies.</p>
+          <div style="margin-top: var(--space-3); font-size: 0.775rem; color: var(--accent-primary); font-family: var(--font-mono);">AR = Lower Bounded [lower, upper]</div>
+        </div>
+        <div class="card">
+          <h4>Telemetry-Attributable Unit Economics</h4>
+          <p>Computes the true Cost Per Task (CPT) down to fractions of a cent ($0.0001 USD) by pricing observed prompt and completion tokens against vendor rate cards, isolating model fees from infrastructure overhead.</p>
+          <div style="margin-top: var(--space-3); font-size: 0.775rem; color: var(--accent-primary); font-family: var(--font-mono);">CPT = Sum(Model Cost) / Total Tasks</div>
+        </div>
+        <div class="card">
+          <h4>Token Efficiency & Latency Drift</h4>
+          <p>Evaluates token utilization ratios (output vs. prompt context ratio) and monitors execution latency degradation across multi-turn reasoning loops.</p>
+          <div style="margin-top: var(--space-3); font-size: 0.775rem; color: var(--accent-primary); font-family: var(--font-mono);">TE = output_tokens / (input + output)</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pillar 2: Architecture & Resilience -->
+    <section style="margin-bottom: var(--space-12);">
+      <div style="border-bottom: 2px solid var(--accent-secondary); padding-bottom: var(--space-2); margin-bottom: var(--space-6); display: flex; align-items: baseline; justify-content: space-between;">
+        <h2>2. Architecture & Supply Chain Intelligence</h2>
+        <span style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Software Supply Chain</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-6);">
+        <div class="card">
+          <h4>AI Bill of Materials (AIBOM)</h4>
+          <p>An itemized supply chain inventory cataloging all foundation models, embedding endpoints, vector databases, external APIs, and human review gates. Exports natively to the official OWASP CycloneDX 1.6 standard.</p>
+          <div style="margin-top: var(--space-3); font-size: 0.775rem; color: var(--accent-secondary); font-family: var(--font-mono);">Standards: CycloneDX v1.6 & v1.5 JSON</div>
+        </div>
+        <div class="card">
+          <h4>Single Points of Failure (SPOF) & Cascades</h4>
+          <p>Identifies fragile dependencies where a single API timeout causes runaway retry loops, measuring the cost overrun multiplier (e.g. 1.8x–5.4x cost spike on failure).</p>
+          <div style="margin-top: var(--space-3); font-size: 0.775rem; color: var(--accent-secondary); font-family: var(--font-mono);">Cascade Multiplier = Failed Cost / OK Cost</div>
+        </div>
+        <div class="card">
+          <h4>Vendor Concentration (HHI Index)</h4>
+          <p>Calculates the Herfindahl-Hirschman Index across model and cloud providers to detect single-vendor lock-in risks (e.g. 98% reliance on OpenAI).</p>
+          <div style="margin-top: var(--space-3); font-size: 0.775rem; color: var(--accent-secondary); font-family: var(--font-mono);">HHI = Sum(Share^2) * 10,000</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pillar 3: Trust & Security -->
+    <section style="margin-bottom: var(--space-12);">
+      <div style="border-bottom: 2px solid var(--color-warning); padding-bottom: var(--space-2); margin-bottom: var(--space-6); display: flex; align-items: baseline; justify-content: space-between;">
+        <h2>3. Trust, Security & Verification</h2>
+        <span style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Evidence & Governance</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-6);">
+        <div class="card">
+          <h4>Claim Verification Matrix</h4>
+          <p>Pits stated claims against measured runtime evidence. Emits formal verdicts: Verified, Contradicted, Partially Verified, or Insufficient Evidence, with explicit mathematical explanations.</p>
+          <div style="margin-top: var(--space-3); font-size: 0.775rem; color: var(--color-warning); font-family: var(--font-mono);">Epistemic Labels: [OBSERVED], [CALCULATED]</div>
+        </div>
+        <div class="card">
+          <h4>Tool Execution Risk & Blast Radius</h4>
+          <p>Classifies tool invocations into Read-Only, Write/Modify, and Dangerous OS Execution. Audits whether the AI has unconstrained access to production databases or bash terminals without human approval.</p>
+          <div style="margin-top: var(--space-3); font-size: 0.775rem; color: var(--color-warning); font-family: var(--font-mono);">Risk Score: 0 (Safe) to 100 (Critical Hazard)</div>
+        </div>
+        <div class="card">
+          <h4>Proof Graph & Cryptographic Seals</h4>
+          <p>Every claim verdict links directly to the supporting trace IDs, span records, and SHA-256 payload provenance digests. Packages are sealed into tamper-proof <code>manifest.json</code> bundles.</p>
+          <div style="margin-top: var(--space-3); font-size: 0.775rem; color: var(--color-warning); font-family: var(--font-mono);">Chain of Custody: Pre-Parsing SHA-256</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pillar 4: Investment Intelligence -->
+    <section style="margin-bottom: var(--space-16);">
+      <div style="border-bottom: 2px solid var(--color-success); padding-bottom: var(--space-2); margin-bottom: var(--space-6); display: flex; align-items: baseline; justify-content: space-between;">
+        <h2>4. Investment & Strategic Diligence</h2>
+        <span style="font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">Deal Execution</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-6);">
+        <div class="card">
+          <h4>Defensibility & Moat Analysis</h4>
+          <p>Evaluates whether the agent possesses proprietary scaffolding, model weight sovereignty, and domain data flywheels, or is merely a thin API wrapper that can be replicated in 2 weeks.</p>
+          <div style="margin-top: var(--space-3); font-size: 0.775rem; color: var(--color-success); font-family: var(--font-mono);">Outputs: Est. Months & USD to Replicate</div>
+        </div>
+        <div class="card">
+          <h4>What-If Economic Stress Simulator</h4>
+          <p>Interactive simulator projecting gross margin impacts under 5x–10x volume surges, +25% provider token price shocks, and human operator wage adjustments ($28/hr vs $55/hr).</p>
+          <div style="margin-top: var(--space-3); font-size: 0.775rem; color: var(--color-success); font-family: var(--font-mono);">Simulates: Fully-Loaded Gross Margins</div>
+        </div>
+        <div class="card">
+          <h4>Investment Committee (IC) Deal Memo</h4>
+          <p>Synthesizes technical findings into an executive memo featuring a definitive Buy, Pass, or Conditional recommendation, Red/Yellow/Green flag register, and 100-day engineering action plan.</p>
+          <div style="margin-top: var(--space-3); font-size: 0.775rem; color: var(--color-success); font-family: var(--font-mono);">Exports: PDF, JSON, ZIP Diligence Bundle</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="card" style="text-align: center; padding: var(--space-10);">
+      <h2>Deploy All 10 Engines on Your AI Target</h2>
+      <p style="margin: var(--space-2) auto var(--space-6);">Test with real benchmark targets or upload custom OTel/MCP traces in the application workspace.</p>
+      <a href="/app" class="btn btn-primary btn-lg">Launch Diligence Workspace →</a>
+    </div>
+  </main>
+
+  <footer class="public-footer">
+    <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+      <span>© 2026 Agentic Diligence (AGD). OpenTelemetry GenAI Semantic Conventions v1.28.0 Compliant.</span>
+      <a href="/how-it-works">Next: How It Works →</a>
+    </div>
+  </footer>
+
+</body>
+</html>

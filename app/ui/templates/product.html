@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Overview | Agentic Diligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/design-system.css">
+</head>
+<body class="public-page">
+
+  <header class="public-nav">
+    <a href="/" class="public-nav-brand">
+      <div class="brand-icon">⬡</div>
+      <span>AGENTIC DILIGENCE</span>
+    </a>
+    <ul class="public-nav-links">
+      <li><a href="/product" class="active">Product</a></li>
+      <li><a href="/capabilities">Capabilities</a></li>
+      <li><a href="/how-it-works">How It Works</a></li>
+      <li><a href="/trust">Trust & Security</a></li>
+      <li><a href="/docs">Documentation</a></li>
+    </ul>
+    <div style="display: flex; align-items: center; gap: var(--space-3);">
+      <a href="/app" class="btn btn-secondary btn-sm">Enter Workspace</a>
+      <a href="/get-started" class="btn btn-primary btn-sm">Get Started →</a>
+    </div>
+  </header>
+
+  <main class="public-container" style="padding-top: var(--space-12);">
+    <div style="max-width: 800px; margin-bottom: var(--space-12);">
+      <div class="badge badge-info" style="margin-bottom: var(--space-3);">PRODUCT ARCHITECTURE</div>
+      <h1 style="font-size: 2.75rem; margin-bottom: var(--space-4);">The Standardized Technical Diligence Operating System for AI</h1>
+      <p style="font-size: 1.15rem; line-height: 1.6;">
+        Agentic Diligence is built specifically for M&A corporate development teams, venture capital investors, and enterprise procurement leaders who need mathematically grounded certainty before deploying or acquiring autonomous AI agents.
+      </p>
+    </div>
+
+    <!-- Product Architecture Diagram & Layering -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: var(--space-8); margin-bottom: var(--space-16);">
+      <div class="card" style="border-left: 4px solid var(--accent-primary);">
+        <h3 style="margin-bottom: var(--space-3);">1. Multi-Source Evidence Ingestion</h3>
+        <p>Captures exact, immutable runtime traces directly from agent executions:</p>
+        <ul style="color: var(--text-secondary); padding-left: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); font-size: 0.9rem;">
+          <li><strong>OpenTelemetry (OTel):</strong> GenAI Semantic Conventions v1.28.0 trace collector on standard HTTP endpoints.</li>
+          <li><strong>Model Context Protocol (MCP):</strong> Intercepts tool declarations, client requests, and server responses.</li>
+          <li><strong>Browser Agent Extension:</strong> Audits DOM action triggers, human confirmation dialogs, and navigation hops.</li>
+          <li><strong>Pre-Parsing SHA-256 Hashing:</strong> Every raw byte payload is fingerprinted before parsing to guarantee non-repudiation.</li>
+        </ul>
+      </div>
+
+      <div class="card" style="border-left: 4px solid var(--accent-secondary);">
+        <h3 style="margin-bottom: var(--space-3);">2. Task Segmentation & Normalization</h3>
+        <p>Solves the fundamental problem of agent runtime gap analysis:</p>
+        <ul style="color: var(--text-secondary); padding-left: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); font-size: 0.9rem;">
+          <li><strong>Deterministic Task Boundaries:</strong> Clusters inter-connected spans into discrete atomic tasks.</li>
+          <li><strong>Reaction Latency Heuristics:</strong> Separates programmatic sub-second tool hops from human delays (e.g. 15s+ operator pauses).</li>
+          <li><strong>Uninstrumented Interval Handling:</strong> Gaps without telemetry are classified as <code>[UNKNOWN]</code> and widen statistical confidence bounds.</li>
+          <li><strong>Honest Autonomy Rate:</strong> Pessimistic lower bound computation ensures unobserved executions are never counted as autonomous.</li>
+        </ul>
+      </div>
+
+      <div class="card" style="border-left: 4px solid var(--color-warning);">
+        <h3 style="margin-bottom: var(--space-3);">3. Deterministic Diligence Engine</h3>
+        <p>Computes 10 specialized intelligence dimensions without subjective human bias:</p>
+        <ul style="color: var(--text-secondary); padding-left: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); font-size: 0.9rem;">
+          <li><strong>Unit Economics:</strong> Exact cost per task, token efficiency, and model pricing breakdown.</li>
+          <li><strong>AI Bill of Materials (AI-BOM):</strong> Supply chain mapping of all weights, tools, vector stores, and APIs.</li>
+          <li><strong>Tool Blast Radius:</strong> Privilege classification auditing dangerous database/shell write commands.</li>
+          <li><strong>Defensibility & Moat:</strong> Proprietary scaffolding complexity vs. commodity prompt wrapper analysis.</li>
+        </ul>
+      </div>
+
+      <div class="card" style="border-left: 4px solid var(--color-success);">
+        <h3 style="margin-bottom: var(--space-3);">4. Decision-Ready Deliverables</h3>
+        <p>Outputs standardized deliverables ready for investment committee review:</p>
+        <ul style="color: var(--text-secondary); padding-left: var(--space-5); display: flex; flex-direction: column; gap: var(--space-2); font-size: 0.9rem;">
+          <li><strong>Investment Committee Deal Memo:</strong> Executive Buy / Pass / Conditional verdict with 100-day playbook.</li>
+          <li><strong>CycloneDX 1.6 AI-BOM:</strong> Official OWASP JSON standard for software supply chain compliance.</li>
+          <li><strong>Cryptographic Evidence Bundle:</strong> Signed <code>manifest.json</code> with bit-level hash verification of all raw and derived records.</li>
+          <li><strong>Audit PDF & Canonical Markdown:</strong> Beautiful board-ready presentations backed by verifiable math.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Ready to Experience CTA -->
+    <div class="card" style="text-align: center; padding: var(--space-10); background: linear-gradient(135deg, var(--bg-surface-1), var(--bg-surface-2));">
+      <h2>Experience the Full Diligence Platform Live</h2>
+      <p style="max-width: 600px; margin: var(--space-2) auto var(--space-6);">Test the platform against benchmark scenarios (AcmeAI, High Automation, Falsified Claims) or ingest your own agent logs.</p>
+      <div style="display: flex; justify-content: center; gap: var(--space-4);">
+        <a href="/app" class="btn btn-primary btn-lg">Open Application Workspace</a>
+        <a href="/capabilities" class="btn btn-secondary btn-lg">Explore All 10 Capabilities</a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="public-footer">
+    <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+      <span>© 2026 Agentic Diligence (AGD). Enterprise Technical Diligence Platform.</span>
+      <a href="/app">Go to Workspace →</a>
+    </div>
+  </footer>
+
+</body>
+</html>

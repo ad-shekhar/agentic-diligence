@@ -274,7 +274,7 @@ def export_cyclonedx_aibom(native_bom: NativeAIBOM, spec_version: str = "1.6") -
     # 4. Human Checkpoints -> type "service"
     for hc in native_bom.human_checkpoints:
         components.append({
-            "type": "service",
+            "type": "platform",
             "bom-ref": f"checkpoint:{hc.checkpoint_type}",
             "name": f"Human Checkpoint ({hc.checkpoint_type})",
             "properties": [

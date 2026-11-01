@@ -521,8 +521,21 @@ def test_scenario_12_malformed_and_oversized_payloads(clean_pipeline):
 # ==============================================================================
 
 def test_api_evidence_ingest_and_verify_e2e(api_client):
-    """Tests the full API flow: POST /api/v1/evidence/ingest -> POST /api/v1/evidence/verify."""
+    """Tests the full API flow: POST /api/v1/evidence/ingest -> POST /api/v1/evidence/verify with auth."""
+    from app.db.session import SessionLocal, init_db
+    from app.security.auth import create_test_api_key
+
+    init_db()
     company_id = "test-api-corp-01"
+
+    # Provision authenticated API key for test tenant/company
+    db = SessionLocal()
+    try:
+        api_key, _ = create_test_api_key(db, company_id=company_id)
+    finally:
+        db.close()
+
+    headers = {"X-API-Key": api_key}
 
     # Ingest 16 traces
     for i in range(16):
@@ -545,7 +558,8 @@ def test_api_evidence_ingest_and_verify_e2e(api_client):
         }
         res = api_client.post(
             f"/api/v1/evidence/ingest?company_id={company_id}&source_type=otlp",
-            json=payload
+            json=payload,
+            headers=headers
         )
         assert res.status_code == 200
         data = res.json()
@@ -553,7 +567,7 @@ def test_api_evidence_ingest_and_verify_e2e(api_client):
         assert len(data["payload_hash"]) == 64
 
     # Query registered records
-    records_res = api_client.get(f"/api/v1/evidence/records?company_id={company_id}")
+    records_res = api_client.get(f"/api/v1/evidence/records?company_id={company_id}", headers=headers)
     assert records_res.status_code == 200
     assert len(records_res.json()) >= 16
 
@@ -573,7 +587,7 @@ def test_api_evidence_ingest_and_verify_e2e(api_client):
         "min_sample_size": 15
     }
 
-    verify_res = api_client.post("/api/v1/evidence/verify", json=verify_payload)
+    verify_res = api_client.post("/api/v1/evidence/verify", json=verify_payload, headers=headers)
     assert verify_res.status_code == 200
     v_data = verify_res.json()
     assert v_data["company_id"] == company_id

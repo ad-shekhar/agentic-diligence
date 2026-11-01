@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agentic Diligence | Enterprise Workspace</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/design-system.css">
+  <style>
+    /* Specific Workspace Layout Elements */
+    .target-badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+      background: var(--accent-primary-light);
+      border: 1px solid rgba(99, 133, 245, 0.3);
+      color: var(--accent-primary);
+      font-size: 0.775rem;
+      font-weight: 600;
+    }
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: var(--space-4);
+      margin-bottom: var(--space-6);
+    }
+    .nav-subgroup {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding-left: var(--space-2);
+      border-left: 2px solid var(--border-subtle);
+      margin-left: var(--space-3);
+      margin-bottom: var(--space-2);
+    }
+    .nav-subgroup .sidebar-item {
+      font-size: 0.775rem;
+      padding: 0.4rem 0.6rem;
+    }
+    .nav-subgroup .sidebar-item .item-num {
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      width: 14px;
+    }
+    .nav-subgroup .sidebar-item.active .item-num {
+      color: var(--accent-primary);
+    }
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-backdrop.open {
+      display: flex;
+    }
+    .modal-box {
+      background: var(--bg-surface-1);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-lg);
+      width: 90%;
+      max-width: 650px;
+      box-shadow: var(--shadow-xl);
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: var(--space-4) var(--space-6);
+      background: var(--bg-surface-2);
+      border-bottom: 1px solid var(--border-default);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-body {
+      padding: var(--space-6);
+      max-height: 75vh;
+      overflow-y: auto;
+    }
+    .modal-footer {
+      padding: var(--space-4) var(--space-6);
+      border-top: 1px solid var(--border-default);
+      display: flex;
+      justify-content: flex-end;
+      gap: var(--space-3);
+      background: var(--bg-surface-1);
+    }
+    .toast-container {
+      position: fixed;
+      bottom: var(--space-6);
+      right: var(--space-6);
+      z-index: 2000;
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+    .toast {
+      background: var(--bg-surface-3);
+      color: var(--text-primary);
+      padding: var(--space-3) var(--space-4);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-strong);
+      box-shadow: var(--shadow-lg);
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: var(--space-3);
+      animation: slideIn 200ms ease;
+    }
+    @keyframes slideIn {
+      from { transform: translateY(20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body class="app-shell">
+
+  <!-- Enterprise Application Sidebar -->
+  <aside class="app-sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <a href="/" style="display: flex; align-items: center; gap: var(--space-2); text-decoration: none;">
+        <div class="brand-icon">⬡</div>
+        <div>
+          <div style="font-size: 0.875rem; font-weight: 700; color: var(--text-primary); letter-spacing: -0.01em;">AGENTIC DILIGENCE</div>
+          <div style="font-size: 0.675rem; color: var(--accent-secondary); font-weight: 600;">ENTERPRISE WORKSPACE</div>
+        </div>
+      </a>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="sidebar-section-title">Workspace</div>
+      <a href="/app" class="sidebar-item" data-route="overview">
+        <span>📊</span> <span class="sidebar-text">Overview</span>
+      </a>
+      <a href="/app/projects" class="sidebar-item" data-route="projects">
+        <span>📁</span> <span class="sidebar-text">Diligence Projects</span>
+      </a>
+      <a href="/app/projects/new" class="sidebar-item" data-route="new-project">
+        <span>➕</span> <span class="sidebar-text">New Evaluation</span>
+      </a>
+
+      <!-- Active Project Context (Dynamically Linked) -->
+      <div id="sidebar-active-project-section" style="display: none;">
+        <div class="sidebar-section-title" id="sidebar-target-name">TARGET AUDIT</div>
+        <a href="#" class="sidebar-item" id="nav-proj-overview" data-route="project-overview">
+          <span>🎯</span> <span class="sidebar-text">Project Overview</span>
+        </a>
+
+        <div class="sidebar-section-title" style="font-size: 0.65rem; color: var(--text-muted);">10 Analytical Modules</div>
+        <div class="nav-subgroup">
+          <a href="#" class="sidebar-item" id="nav-proj-claims" data-route="claims">
+            <span class="item-num">1</span> <span class="sidebar-text">Claim Matrix</span>
+          </a>
+          <a href="#" class="sidebar-item" id="nav-proj-autonomy" data-route="autonomy">
+            <span class="item-num">2</span> <span class="sidebar-text">Autonomy & HIR</span>
+          </a>
+          <a href="#" class="sidebar-item" id="nav-proj-economics" data-route="economics">
+            <span class="item-num">3</span> <span class="sidebar-text">Unit Economics</span>
+          </a>
+          <a href="#" class="sidebar-item" id="nav-proj-dependencies" data-route="dependencies">
+            <span class="item-num">4</span> <span class="sidebar-text">Dependencies & SPOF</span>
+          </a>
+          <a href="#" class="sidebar-item" id="nav-proj-aibom" data-route="aibom">
+            <span class="item-num">5</span> <span class="sidebar-text">AIBOM (CycloneDX)</span>
+          </a>
+          <a href="#" class="sidebar-item" id="nav-proj-evidence" data-route="evidence">
+            <span class="item-num">6</span> <span class="sidebar-text">Proof & Evidence Graph</span>
+          </a>
+          <a href="#" class="sidebar-item" id="nav-proj-security" data-route="security">
+            <span class="item-num">7</span> <span class="sidebar-text">Tool Safety Risk</span>
+          </a>
+          <a href="#" class="sidebar-item" id="nav-proj-defensibility" data-route="defensibility">
+            <span class="item-num">8</span> <span class="sidebar-text">Moat & Defensibility</span>
+          </a>
+          <a href="#" class="sidebar-item" id="nav-proj-stress" data-route="stress-test">
+            <span class="item-num">9</span> <span class="sidebar-text">Stress Simulator</span>
+          </a>
+          <a href="#" class="sidebar-item" id="nav-proj-comparison" data-route="comparison">
+            <span class="item-num">10</span> <span class="sidebar-text">Target Comparison</span>
+          </a>
+          <a href="#" class="sidebar-item" id="nav-proj-reports" data-route="reports">
+            <span class="item-num">11</span> <span class="sidebar-text">Deal Memo & Reports</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="sidebar-section-title">Integrations & System</div>
+      <a href="/app/integrations" class="sidebar-item" data-route="integrations">
+        <span>🔌</span> <span class="sidebar-text">OTel & Adapters</span>
+      </a>
+      <a href="/app/settings" class="sidebar-item" data-route="settings">
+        <span>⚙️</span> <span class="sidebar-text">Settings</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem;">
+        <a href="/docs" target="_blank" style="color: var(--text-muted);">Documentation ↗</a>
+        <a href="/" style="color: var(--text-muted);">Public Site</a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Application Main Viewport -->
+  <div class="app-main-viewport">
+    <!-- Topbar -->
+    <header class="app-topbar">
+      <div style="display: flex; align-items: center; gap: var(--space-4);">
+        <button id="btn-toggle-sidebar" class="btn btn-outline btn-sm" style="padding: 4px 8px;" title="Toggle Sidebar">☰</button>
+        <div class="topbar-breadcrumbs" id="topbar-breadcrumbs">
+          <a href="/app">Workspace</a>
+          <span class="divider">/</span>
+          <span class="current" id="breadcrumb-current">Overview</span>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <!-- Target Selector Dropdown -->
+        <div style="display: flex; align-items: center; gap: var(--space-2);">
+          <span style="font-size: 0.775rem; color: var(--text-muted);">Target:</span>
+          <select id="topbar-target-select" class="form-control" style="padding: 4px 10px; font-size: 0.8rem; width: 220px;">
+            <option value="" disabled selected>Loading targets...</option>
+          </select>
+        </div>
+
+        <button id="btn-upload-traces-topbar" class="btn btn-secondary btn-sm">
+          <span>↑</span> Ingest Logs
+        </button>
+
+        <a href="/app/projects/new" class="btn btn-primary btn-sm">
+          <span>+</span> New Audit
+        </a>
+
+        <div class="target-badge-pill" title="Telemetry collector active on /v1/traces">
+          <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--color-success); display: inline-block;"></span>
+          <span>Collector Live</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content Area (Rendered by Router) -->
+    <main class="app-content-body" id="app-view-container">
+      <div style="padding: var(--space-8); text-align: center; color: var(--text-muted);">
+        <p>Loading application workspace...</p>
+      </div>
+    </main>
+  </div>
+
+  <!-- Telemetry Upload Modal -->
+  <div class="modal-backdrop" id="modal-upload">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Ingest OpenTelemetry GenAI Traces</h3>
+        <button class="btn btn-outline btn-sm" id="btn-close-upload-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; margin-bottom: var(--space-4);">
+          Paste raw OpenTelemetry JSON payload (GenAI semantic conventions v1.28.0) or Claude MCP observer traces. Every payload is cryptographically hashed with SHA-256 for chain of custody.
+        </p>
+        <div class="form-group">
+          <label class="form-label" for="textarea-traces">Trace Payload (JSON):</label>
+          <textarea id="textarea-traces" class="form-control font-mono" rows="9" style="font-size: 0.775rem;" placeholder='{"resourceSpans": [{"scopeSpans": [{"spans": [...]}]}]}'></textarea>
+        </div>
+        <div id="upload-feedback" style="display: none; padding: var(--space-3); border-radius: var(--radius-md); font-size: 0.8rem;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-upload">Cancel</button>
+        <button class="btn btn-primary" id="btn-submit-upload">Submit & Ingest Telemetry</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Scripts -->
+  <script src="/static/js/app-router.js"></script>
+</body>
+</html>

@@ -8,6 +8,42 @@ Agentic Diligence is a deterministic, evidence-backed technical due diligence pl
 
 ---
 
+## SaaS Platform & Multi-Page Architecture (Phase 8)
+
+Agentic Diligence features a modern multi-page architecture with two distinct experiences powered by a unified dark enterprise design system:
+
+### Experience A — Public Product Website
+- **Landing Page (`/`)**: Value proposition ("Don't Trust the Claim. Verify the Reality."), core problems, 10 engines overview, live benchmark preview.
+- **Product Architecture (`/product`)**: End-to-end telemetry pipeline, task segmentation, 10 diligence engines, and deliverables.
+- **Analytical Capabilities (`/capabilities`)**: Deep dive into all 10 specialized intelligence modules across 4 pillars.
+- **Methodology & Pipeline (`/how-it-works`)**: 4-stage pipeline (Connect → Analyze → Verify → Decide).
+- **Trust & Epistemic Governance (`/trust`)**: Epistemic trust ladder (T0–T3), 35% dark-zone threshold, automated credential sanitization.
+- **Documentation Hub (`/docs`)**: Auditor & developer guide, CLI cheat sheet, REST endpoints, and OpenAPI Swagger UI (`/api/docs`).
+- **Onboarding Wizard (`/get-started`)**: Guided launchpad for benchmark presets (AcmeAI Scenario A, Scenarios B–J) or custom evaluations.
+
+### Experience B — Authenticated / Managed SaaS Application Workspace
+- **Workspace Hub (`/app`)**: Interactive multi-page SaaS shell with collapsible sidebar, dynamic breadcrumbs, and live company selector.
+- **Project Catalog (`/app/projects`)**: Catalog of all evaluated target companies, statuses, and trace counts.
+- **Audit Initializer (`/app/projects/new`)**: Configure new target evaluations.
+- **Deep-Dive Engine Controllers**: Dedicated view controllers for all 10 analytical engines:
+  - `/app/projects/{id}/claims`: Claim Verification Matrix
+  - `/app/projects/{id}/autonomy`: Autonomy & Human Intervention Rate
+  - `/app/projects/{id}/economics`: Unit Economics & Cost Per Task
+  - `/app/projects/{id}/dependencies`: SPOF & Failure Cascades
+  - `/app/projects/{id}/aibom`: CycloneDX 1.6 AI Bill of Materials
+  - `/app/projects/{id}/evidence`: Cryptographic Evidence Log & SHA-256 Hashes
+  - `/app/projects/{id}/security`: Tool Risk & Blast Radius
+  - `/app/projects/{id}/defensibility`: Moat & Scaffolding Analysis
+  - `/app/projects/{id}/stress-test`: Economic Stress Simulator
+  - `/app/projects/{id}/comparison`: Multi-Target Diligence Matrix
+  - `/app/projects/{id}/reports`: IC Deal Memo & Bundle Download
+- **Integrations & Settings**:
+  - `/app/integrations`: OpenTelemetry collector status & MCP proxy config
+  - `/app/settings`: Workspace settings & API key administration
+- **Legacy Cockpit Fallback**: Accessible anytime at `/cockpit`.
+
+---
+
 ## OpenTelemetry OTLP Ingestion (`POST /v1/traces`)
 
 Agentic Diligence exposes a standards-compliant OpenTelemetry Protocol (OTLP) HTTP/JSON trace ingestion endpoint at `POST /v1/traces`.
@@ -121,11 +157,11 @@ Query the live matrix via `GET http://127.0.0.1:8000/v1/compatibility` or inspec
 ### 5. Running Tests & Benchmarks
 
 ```bash
-# Run complete test suite (80 passed)
+# Run complete test suite (280 passed)
 pytest
 
-# Run Phase 2 specific tests
-pytest tests/test_normalizer.py tests/test_otlp_ingestion.py tests/test_real_trace_validation.py -v
+# Run Phase 8 multi-page & SaaS UI route tests
+pytest tests/test_phase8_ui_routes.py -v
 
 # Run local ingestion performance benchmark
 python scripts/benchmark_ingest.py

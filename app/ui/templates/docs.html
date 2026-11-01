@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Documentation & API Reference | Agentic Diligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/design-system.css">
+</head>
+<body class="public-page">
+
+  <header class="public-nav">
+    <a href="/" class="public-nav-brand">
+      <div class="brand-icon">⬡</div>
+      <span>AGENTIC DILIGENCE</span>
+    </a>
+    <ul class="public-nav-links">
+      <li><a href="/product">Product</a></li>
+      <li><a href="/capabilities">Capabilities</a></li>
+      <li><a href="/how-it-works">How It Works</a></li>
+      <li><a href="/trust">Trust & Security</a></li>
+      <li><a href="/docs" class="active">Documentation</a></li>
+    </ul>
+    <div style="display: flex; align-items: center; gap: var(--space-3);">
+      <a href="/app" class="btn btn-secondary btn-sm">Enter Workspace</a>
+      <a href="/get-started" class="btn btn-primary btn-sm">Get Started →</a>
+    </div>
+  </header>
+
+  <main class="public-container" style="padding-top: var(--space-12);">
+    <div style="max-width: 800px; margin-bottom: var(--space-12);">
+      <div class="badge badge-info" style="margin-bottom: var(--space-3);">DEVELOPER & AUDITOR HUB</div>
+      <h1 style="font-size: 2.75rem; margin-bottom: var(--space-4);">Agentic Diligence Documentation</h1>
+      <p style="font-size: 1.15rem; line-height: 1.6;">
+        Everything you need to integrate agent telemetry, execute deterministic diligence audits, and automate verification workflows via API or CLI.
+      </p>
+      <div style="margin-top: var(--space-4); display: flex; gap: var(--space-3);">
+        <a href="/api/docs" target="_blank" class="btn btn-outline btn-sm">Open Interactive Swagger UI ↗</a>
+        <a href="/v1/compatibility" class="btn btn-secondary btn-sm">View Compatibility Matrix</a>
+      </div>
+    </div>
+
+    <!-- Quickstart Guide -->
+    <section class="card" style="margin-bottom: var(--space-8);">
+      <h2 style="margin-bottom: var(--space-3);">Quickstart: Running Your First Audit</h2>
+      <p style="margin-bottom: var(--space-4);">Execute an end-to-end technical due diligence audit on benchmark target AcmeAI (Scenario A):</p>
+      
+      <div style="background: var(--bg-root); border: 1px solid var(--border-default); border-radius: var(--radius-md); padding: var(--space-4); margin-bottom: var(--space-4); overflow-x: auto;">
+        <pre class="font-mono" style="color: var(--accent-primary); font-size: 0.85rem;"><code># 1. Start the live Agentic Diligence server
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+# 2. Run Scenario A benchmark and generate canonical diligence metrics
+curl -X GET "http://127.0.0.1:8000/api/v1/scenarios/scenario_a/run?sample_size=100"
+
+# 3. Or use the CLI to compute deterministic signals directly
+python cli.py compute-metrics --scenario scenario_a --sample-size 100
+
+# 4. Generate the Claim Verification Matrix
+python cli.py claim-matrix --company &lt;company_id&gt;</code></pre>
+      </div>
+    </section>
+
+    <!-- Key REST API Endpoints -->
+    <section style="margin-bottom: var(--space-12);">
+      <h2 style="margin-bottom: var(--space-4);">Core REST API Endpoints</h2>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 100px;">Method</th>
+              <th style="width: 300px;">Endpoint Route</th>
+              <th>Function & Purpose</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-info">POST</span></td>
+              <td><code>/v1/traces</code></td>
+              <td>OpenTelemetry GenAI OTLP HTTP/JSON trace ingestion gateway. Computes pre-parsing SHA-256 hash.</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-success">GET</span></td>
+              <td><code>/api/v1/scenarios/{name}/run</code></td>
+              <td>Generates reproducible synthetic ground-truth benchmark (scenario_a to scenario_j) and builds complete report.</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-success">GET</span></td>
+              <td><code>/api/v1/companies/{id}/metrics</code></td>
+              <td>Computes the 8 canonical diligence signals (AR, HIR, TCR, ER, TE, CPT, MC, TC) with confidence bounds.</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-success">GET</span></td>
+              <td><code>/api/v1/companies/{id}/claim-matrix</code></td>
+              <td>Evaluates company claims against observed bounds to produce formal Verified/Contradicted verdicts.</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-success">GET</span></td>
+              <td><code>/api/v1/companies/{id}/aibom/cyclonedx</code></td>
+              <td>Exports supply chain bill of materials in CycloneDX 1.6 / 1.5 JSON with OWASP schema validation.</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-success">GET</span></td>
+              <td><code>/api/v1/companies/{id}/diligence-report</code></td>
+              <td>Generates canonical diligence report package in JSON or Markdown format.</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-info">POST</span></td>
+              <td><code>/api/v1/companies/{id}/bundle</code></td>
+              <td>Compiles complete evidence bundle on disk with RFC 8785 canonical JSON <code>manifest.json</code>.</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-info">POST</span></td>
+              <td><code>/api/v1/bundles/verify</code></td>
+              <td>Cryptographically verifies an evidence bundle directory against its SHA-256 manifest.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CLI Command Reference -->
+    <section class="card" style="margin-bottom: var(--space-12);">
+      <h2 style="margin-bottom: var(--space-3);">CLI Command Reference</h2>
+      <p style="margin-bottom: var(--space-4);">Agentic Diligence includes a full command-line suite in <code>cli.py</code>:</p>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>Options & Flags</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>python cli.py compute-metrics</code></td>
+              <td><code>--scenario, --sample-size, --output-json</code></td>
+              <td>Runs task segmentation and outputs all 8 diligence signals with trust attribution.</td>
+            </tr>
+            <tr>
+              <td><code>python cli.py claim-matrix</code></td>
+              <td><code>--company &lt;id&gt;, --output &lt;file&gt;</code></td>
+              <td>Generates and prints the formal Claim Verification Matrix.</td>
+            </tr>
+            <tr>
+              <td><code>python cli.py aibom</code></td>
+              <td><code>--company &lt;id&gt;, --spec-version 1.6, --validate</code></td>
+              <td>Exports CycloneDX AI-BOM and validates against official schema.</td>
+            </tr>
+            <tr>
+              <td><code>python cli.py bundle verify</code></td>
+              <td><code>--dir &lt;bundle_dir&gt;</code></td>
+              <td>Verifies cryptographic integrity and file completeness of a diligence bundle.</td>
+            </tr>
+            <tr>
+              <td><code>python cli.py compare-targets</code></td>
+              <td><code>--target-a, --target-b, --sample-size</code></td>
+              <td>Executes side-by-side head-to-head diligence comparison between two targets.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="public-footer">
+    <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+      <span>© 2026 Agentic Diligence (AGD). OpenTelemetry GenAI Semantic Conventions v1.28.0.</span>
+      <a href="/get-started">Next: Get Started Onboarding →</a>
+    </div>
+  </footer>
+
+</body>
+</html>

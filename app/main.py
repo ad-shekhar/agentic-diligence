@@ -11,7 +11,8 @@ from app.api.routes import router
 app = FastAPI(
     title=settings.PROJECT_NAME,
     description=settings.PROJECT_SLOGAN,
-    version=settings.VERSION
+    version=settings.VERSION,
+    docs_url="/api/docs"
 )
 
 app.add_middleware(
@@ -65,8 +66,11 @@ def startup_event():
     init_db()
 
 @app.get("/")
-def serve_dashboard():
-    """Serves the interactive due diligence cockpit UI."""
+def serve_landing_page():
+    """Serves Experience A: The Public Marketing Landing Page."""
+    path = os.path.join(os.path.dirname(__file__), "ui", "templates", "landing.html")
+    if os.path.exists(path):
+        return FileResponse(path, media_type="text/html")
     index_path = os.path.join(os.path.dirname(__file__), "ui", "templates", "index.html")
     if os.path.exists(index_path):
         return FileResponse(index_path, media_type="text/html")
@@ -74,8 +78,52 @@ def serve_dashboard():
         "name": settings.PROJECT_NAME,
         "slogan": settings.PROJECT_SLOGAN,
         "version": settings.VERSION,
-        "docs_url": "/docs"
+        "docs_url": "/api/docs"
     }
+
+@app.get("/product")
+def serve_product_page():
+    path = os.path.join(os.path.dirname(__file__), "ui", "templates", "product.html")
+    return FileResponse(path, media_type="text/html")
+
+@app.get("/capabilities")
+def serve_capabilities_page():
+    path = os.path.join(os.path.dirname(__file__), "ui", "templates", "capabilities.html")
+    return FileResponse(path, media_type="text/html")
+
+@app.get("/how-it-works")
+def serve_how_it_works_page():
+    path = os.path.join(os.path.dirname(__file__), "ui", "templates", "how_it_works.html")
+    return FileResponse(path, media_type="text/html")
+
+@app.get("/trust")
+def serve_trust_page():
+    path = os.path.join(os.path.dirname(__file__), "ui", "templates", "trust.html")
+    return FileResponse(path, media_type="text/html")
+
+@app.get("/docs")
+def serve_docs_hub():
+    path = os.path.join(os.path.dirname(__file__), "ui", "templates", "docs.html")
+    return FileResponse(path, media_type="text/html")
+
+@app.get("/get-started")
+def serve_get_started_page():
+    path = os.path.join(os.path.dirname(__file__), "ui", "templates", "get_started.html")
+    return FileResponse(path, media_type="text/html")
+
+@app.get("/cockpit")
+def serve_legacy_cockpit():
+    index_path = os.path.join(os.path.dirname(__file__), "ui", "templates", "index.html")
+    return FileResponse(index_path, media_type="text/html")
+
+@app.get("/app")
+@app.get("/app/{full_path:path}")
+def serve_application_workspace(full_path: str = ""):
+    path = os.path.join(os.path.dirname(__file__), "ui", "templates", "app.html")
+    if os.path.exists(path):
+        return FileResponse(path, media_type="text/html")
+    index_path = os.path.join(os.path.dirname(__file__), "ui", "templates", "index.html")
+    return FileResponse(index_path, media_type="text/html")
 
 @app.get("/api/info")
 def root_info():
@@ -83,7 +131,7 @@ def root_info():
         "name": settings.PROJECT_NAME,
         "slogan": settings.PROJECT_SLOGAN,
         "version": settings.VERSION,
-        "docs_url": "/docs"
+        "docs_url": "/api/docs"
     }
 
 if __name__ == "__main__":

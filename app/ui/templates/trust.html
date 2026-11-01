@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trust, Governance & Security | Agentic Diligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/design-system.css">
+</head>
+<body class="public-page">
+
+  <header class="public-nav">
+    <a href="/" class="public-nav-brand">
+      <div class="brand-icon">⬡</div>
+      <span>AGENTIC DILIGENCE</span>
+    </a>
+    <ul class="public-nav-links">
+      <li><a href="/product">Product</a></li>
+      <li><a href="/capabilities">Capabilities</a></li>
+      <li><a href="/how-it-works">How It Works</a></li>
+      <li><a href="/trust" class="active">Trust & Security</a></li>
+      <li><a href="/docs">Documentation</a></li>
+    </ul>
+    <div style="display: flex; align-items: center; gap: var(--space-3);">
+      <a href="/app" class="btn btn-secondary btn-sm">Enter Workspace</a>
+      <a href="/get-started" class="btn btn-primary btn-sm">Get Started →</a>
+    </div>
+  </header>
+
+  <main class="public-container" style="padding-top: var(--space-12);">
+    <div style="max-width: 800px; margin-bottom: var(--space-12);">
+      <div class="badge badge-success" style="margin-bottom: var(--space-3);">GOVERNANCE & INTEGRITY</div>
+      <h1 style="font-size: 2.75rem; margin-bottom: var(--space-4);">Engineered for Verifiable Mathematical Trust</h1>
+      <p style="font-size: 1.15rem; line-height: 1.6;">
+        Agentic Diligence is built on strict epistemic foundations. We do not invent trust scores, fabricate compliance badges, or assume unobserved software behavior succeeded.
+      </p>
+    </div>
+
+    <!-- The 4 Invariant Rules -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-6); margin-bottom: var(--space-12);">
+      <div class="card">
+        <h4 style="color: var(--accent-primary); margin-bottom: var(--space-2);">Rule 1: Verify What Evidence Supports</h4>
+        <p>Founder statements, pitch decks, and contractual SLAs are treated as unverified vendor claims (T0). A claim is only verified when empirical runtime telemetry confirms the target criteria within confidence bounds.</p>
+      </div>
+
+      <div class="card">
+        <h4 style="color: var(--accent-secondary); margin-bottom: var(--space-2);">Rule 2: Absence ≠ Evidence of Absence</h4>
+        <p>If an agent runtime lacks telemetry for a 15-minute interval, that interval is classified as <code>[UNKNOWN]</code>. It is never assumed to be autonomous, zero-cost, or successful. Unknowns widen statistical bounds.</p>
+      </div>
+
+      <div class="card">
+        <h4 style="color: var(--color-warning); margin-bottom: var(--space-2);">Rule 3: Dark-Zone Threshold (35% Rule)</h4>
+        <p>If more than 35% of an agent's execution tasks lack telemetry evidence, claims requiring high autonomy or completion are capped at <code>PARTIALLY_VERIFIED</code> or <code>INSUFFICIENT_EVIDENCE</code> regardless of observed success rates.</p>
+      </div>
+
+      <div class="card">
+        <h4 style="color: var(--color-success); margin-bottom: var(--space-2);">Rule 4: Explicit Epistemic Tagging</h4>
+        <p>Every single number emitted by Agentic Diligence is tagged with its origin: <code>[OBSERVED]</code> (directly measured in spans), <code>[CALCULATED]</code> (derived via deterministic math), <code>[INFERRED]</code> (heuristic), or <code>[UNKNOWN]</code>.</p>
+      </div>
+    </div>
+
+    <!-- Epistemic Trust Ladder Table -->
+    <div style="margin-bottom: var(--space-12);">
+      <h2 style="margin-bottom: var(--space-4);">The 4-Tier Epistemic Trust Ladder</h2>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th style="width: 100px;">Level</th>
+              <th style="width: 220px;">Category</th>
+              <th>Description & Verification Standard</th>
+              <th style="width: 160px;">Tamper Resistance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-warning">T0</span></td>
+              <td><strong>Self-Reported Claim</strong></td>
+              <td>Founder pitch deck claims, marketing materials, sales collateral, unverified contractual SLAs.</td>
+              <td>None (Subjective)</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-info">T1</span></td>
+              <td><strong>First-Party Telemetry</strong></td>
+              <td>OpenTelemetry spans emitted directly from the target agent's code runtime (e.g. LangChain, CrewAI).</td>
+              <td>Moderate (Process-Internal)</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-success">T2</span></td>
+              <td><strong>Independent Observer</strong></td>
+              <td>Telemetry captured by an out-of-process network proxy, MCP stdio observer, or third-party monitoring agent.</td>
+              <td>High (Out-of-Process)</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-primary">T3</span></td>
+              <td><strong>Cryptographically Attested</strong></td>
+              <td>Execution logs cryptographically signed inside a hardware isolated enclave (TEE / TPM) or deterministic sandbox.</td>
+              <td>Cryptographic Proof</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Security & Redaction Boundaries -->
+    <div class="card" style="margin-bottom: var(--space-12);">
+      <h3 style="margin-bottom: var(--space-3);">Data Privacy & Automated Redaction</h3>
+      <p style="margin-bottom: var(--space-4);">
+        Agentic Diligence is designed to audit agent execution without leaking intellectual property, end-user personal data, or infrastructure credentials:
+      </p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-4);">
+        <div>
+          <h4>Credential Scrubbing</h4>
+          <p style="font-size: 0.85rem;">Incoming payloads automatically sanitize API keys (<code>sk-...</code>), GitHub tokens (<code>ghp_...</code>), and HTTP Authorization headers before database storage.</p>
+        </div>
+        <div>
+          <h4>Hermetic Manifest Containment</h4>
+          <p style="font-size: 0.85rem;">Manifest verification strictly enforces directory containment (<code>os.path.commonpath</code>), rejecting directory traversal sequences (<code>..</code>) and absolute host path escapes.</p>
+        </div>
+        <div>
+          <h4>Local & Air-Gapped Operation</h4>
+          <p style="font-size: 0.85rem;">The platform can execute completely offline in air-gapped auditor sandboxes without phoning home or transmitting telemetry to cloud servers.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Final CTA -->
+    <div class="card" style="text-align: center; padding: var(--space-10);">
+      <h2>Audit With Mathematical Integrity</h2>
+      <p style="margin: var(--space-2) auto var(--space-6);">Experience an evidence-first technical due diligence workflow.</p>
+      <a href="/app" class="btn btn-primary btn-lg">Launch Diligence Workspace →</a>
+    </div>
+  </main>
+
+  <footer class="public-footer">
+    <div class="footer-bottom" style="border-top: none; padding-top: 0;">
+      <span>© 2026 Agentic Diligence (AGD). OpenTelemetry GenAI Semantic Conventions v1.28.0.</span>
+      <a href="/docs">Next: Documentation →</a>
+    </div>
+  </footer>
+
+</body>
+</html>

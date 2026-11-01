@@ -406,3 +406,161 @@ def compile_diligence_bundle_on_disk(
         "output_dir": output_dir,
         "artifacts_compiled": len(artifacts)
     }
+
+
+# ==============================================================================
+# PHASE 9: PROJECT DELIVERABLE REPORTING SERVICE
+# ==============================================================================
+def generate_project_report(
+    db: Session,
+    project_identifier: str,
+    assessment_id: Optional[str] = None,
+    output_dir: Optional[str] = None
+) -> Dict[str, Any]:
+    """
+    Compiles an immutable due diligence package snapshot and persists Report record in DB.
+    """
+    from app.db.models import Project, Report, Assessment
+    from app.projects.service import get_project_by_id_or_company, log_project_activity
+    from app.reporting.builder import build_due_diligence_report
+
+    project = get_project_by_id_or_company(db, project_identifier)
+    if not project:
+        raise ValueError(f"Project '{project_identifier}' not found.")
+
+    company_id = project.company_id
+    if not output_dir:
+        output_dir = os.path.join("reports", str(company_id))
+    os.makedirs(output_dir, exist_ok=True)
+
+    package = build_due_diligence_report(
+        db=db,
+        company_id=company_id,
+        output_dir=output_dir,
+        assessment_id=assessment_id
+    )
+
+    report_id = package.get("report_id")
+    report = db.query(Report).filter(Report.id == report_id).first()
+
+    # Log activity on project
+    log_project_activity(
+        db,
+        project.id,
+        activity_type="REPORT_GENERATED",
+        description=f"Generated diligence report deliverables for {project.target_system or project.name} (PDF, JSON, Bundle).",
+        metadata_json={
+            "report_id": report_id,
+            "assessment_id": assessment_id,
+            "verdict": package.get("memo", {}).get("deal_verdict"),
+            "risk_score": package.get("memo", {}).get("diligence_risk_score")
+        }
+    )
+    db.commit()
+
+    return {
+        "report_id": report_id,
+        "assessment_id": assessment_id,
+        "project_id": project.id,
+        "title": report.title if report else "Diligence Report",
+        "created_at": report.created_at.isoformat() if report and report.created_at else None,
+        "pdf_download_url": f"/api/v1/reports/{report_id}/download?format=pdf",
+        "json_download_url": f"/api/v1/reports/{report_id}/download?format=json",
+        "bundle_download_url": f"/api/v1/reports/{report_id}/download?format=bundle",
+        "manifest_download_url": f"/api/v1/reports/{report_id}/download?format=manifest",
+        "summary": {
+            "deal_verdict": package.get("memo", {}).get("deal_verdict"),
+            "diligence_risk_score": package.get("memo", {}).get("diligence_risk_score"),
+            "executive_summary": package.get("memo", {}).get("executive_verdict_summary"),
+        }
+    }
+
+
+def list_project_reports(db: Session, project_identifier: str) -> List[Dict[str, Any]]:
+    """Retrieves all generated report snapshots for a project."""
+    from app.db.models import Project, Report
+    from app.projects.service import get_project_by_id_or_company
+    from sqlalchemy import desc
+
+    project = get_project_by_id_or_company(db, project_identifier)
+    if not project:
+        return []
+
+    reports = (
+        db.query(Report)
+        .filter(Report.company_id == project.company_id)
+        .order_by(desc(Report.created_at))
+        .all()
+    )
+
+    return [
+        {
+            "id": r.id,
+            "title": r.title,
+            "assessment_id": r.assessment_id,
+            "has_pdf": bool(r.pdf_path and os.path.exists(str(r.pdf_path))),
+            "pdf_download_url": f"/api/v1/reports/{r.id}/download?format=pdf",
+            "json_download_url": f"/api/v1/reports/{r.id}/download?format=json",
+            "bundle_download_url": f"/api/v1/reports/{r.id}/download?format=bundle",
+            "manifest_download_url": f"/api/v1/reports/{r.id}/download?format=manifest",
+            "deal_verdict": (r.summary_json or {}).get("memo", {}).get("deal_verdict"),
+            "risk_score": (r.summary_json or {}).get("memo", {}).get("diligence_risk_score"),
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in reports
+    ]
+
+
+def get_report_download_artifact(db: Session, report_id: str, format: str = "pdf") -> Dict[str, Any]:
+    """
+    Resolves artifact path, content type, and filename for requested format (pdf, json, bundle, manifest).
+    """
+    from app.db.models import Report
+
+    report = db.query(Report).filter(Report.id == report_id).first()
+    if not report:
+        raise ValueError(f"Report '{report_id}' not found.")
+
+    summary = report.summary_json or {}
+    pkg_files = summary.get("package_files", {})
+
+    fmt = format.lower().strip()
+    if fmt == "pdf":
+        path = report.pdf_path or pkg_files.get("pdf_report")
+        if not path or not os.path.exists(str(path)):
+            raise ValueError("PDF report file is not available on disk.")
+        return {
+            "type": "file",
+            "path": str(path),
+            "media_type": "application/pdf",
+            "filename": os.path.basename(str(path))
+        }
+
+    elif fmt == "bundle":
+        path = pkg_files.get("diligence_bundle_zip")
+        if not path or not os.path.exists(str(path)):
+            raise ValueError("Signed diligence bundle ZIP is not available on disk.")
+        return {
+            "type": "file",
+            "path": str(path),
+            "media_type": "application/zip",
+            "filename": os.path.basename(str(path))
+        }
+
+    elif fmt == "manifest":
+        manifest = summary.get("audit_manifest", {})
+        return {
+            "type": "json",
+            "data": manifest,
+            "filename": f"audit_manifest_{report.company_id}.json"
+        }
+
+    elif fmt == "json":
+        return {
+            "type": "json",
+            "data": summary,
+            "filename": f"diligence_package_{report.company_id}.json"
+        }
+
+    else:
+        raise ValueError(f"Unsupported report format '{format}'. Supported formats: pdf, json, bundle, manifest.")

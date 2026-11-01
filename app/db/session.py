@@ -43,5 +43,20 @@ def init_db():
             if cols_rep and "assessment_id" not in cols_rep:
                 conn.execute(text("ALTER TABLE reports ADD COLUMN assessment_id VARCHAR(36)"))
                 conn.commit()
+
+            result_ass = conn.execute(text("PRAGMA table_info(assessments)")).fetchall()
+            cols_ass = [r[1] for r in result_ass]
+            if cols_ass:
+                if "trigger_type" not in cols_ass:
+                    conn.execute(text("ALTER TABLE assessments ADD COLUMN trigger_type VARCHAR(50) DEFAULT 'MANUAL'"))
+                if "overall_risk_score" not in cols_ass:
+                    conn.execute(text("ALTER TABLE assessments ADD COLUMN overall_risk_score FLOAT"))
+                if "autonomy_score" not in cols_ass:
+                    conn.execute(text("ALTER TABLE assessments ADD COLUMN autonomy_score FLOAT"))
+                if "summary_verdict" not in cols_ass:
+                    conn.execute(text("ALTER TABLE assessments ADD COLUMN summary_verdict VARCHAR(50)"))
+                if "engines_executed" not in cols_ass:
+                    conn.execute(text("ALTER TABLE assessments ADD COLUMN engines_executed JSON"))
+                conn.commit()
         except Exception:
             pass

@@ -464,9 +464,14 @@ class Assessment(Base):
     id = Column(String(36), primary_key=True, default=generate_uuid)
     project_id = Column(String(36), ForeignKey("projects.id"), nullable=False, index=True)
     company_id = Column(String(36), ForeignKey("companies.id"), nullable=False, index=True)
-    name = Column(String(255), nullable=False)
+    name = Column(String(255), nullable=True, default="Comprehensive Diligence Assessment")
     status = Column(String(50), default="PENDING", nullable=False)  # PENDING, RUNNING, COMPLETED, PARTIALLY_COMPLETED, FAILED, CANCELLED
+    trigger_type = Column(String(50), default="MANUAL", nullable=True)
+    overall_risk_score = Column(Float, nullable=True)
+    autonomy_score = Column(Float, nullable=True)
+    summary_verdict = Column(String(50), nullable=True)
     selected_engines = Column(JSON, nullable=True)
+    engines_executed = Column(JSON, nullable=True)
     summary_findings = Column(JSON, nullable=True)  # synthesized red/yellow flags, deal verdict, confidence
     error_message = Column(Text, nullable=True)
     started_at = Column(DateTime, nullable=True)

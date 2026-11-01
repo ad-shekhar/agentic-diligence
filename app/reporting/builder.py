@@ -24,7 +24,8 @@ def build_due_diligence_report(
     db: Session,
     company_id: str,
     pdf_output_path: str = None,
-    output_dir: str = None
+    output_dir: str = None,
+    assessment_id: str = None
 ) -> Dict[str, Any]:
     """
     Assembles a complete, standardized technical diligence package:
@@ -219,6 +220,7 @@ def build_due_diligence_report(
     # 8. Save Report record in DB
     db_report = Report(
         company_id=company_id,
+        assessment_id=assessment_id,
         title=f"Technical Due Diligence Report - {company.name}",
         summary_json=report_data,
         pdf_path=pdf_path

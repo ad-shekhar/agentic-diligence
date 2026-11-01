@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Body, Query, UploadFile, 
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from sqlalchemy.orm import Session
 from typing import Dict, Any, List, Optional
+from pydantic import BaseModel
 
 from app.db.session import get_db
 from app.db.models import Company, Tenant, Claim, Report
@@ -236,6 +237,134 @@ def get_project_evidence_route(project_id: str, db: Session = Depends(get_db)):
     """Returns evidence records and cryptographic provenance digests for a project."""
     from app.ingestion.service import list_project_evidence_records
     return list_project_evidence_records(db, project_id)
+
+
+class AssessmentRunRequest(BaseModel):
+    selected_engines: Optional[List[str]] = None
+    trigger_type: Optional[str] = "MANUAL"
+    config: Optional[Dict[str, Any]] = None
+
+
+@router.post("/projects/{project_id}/assessments")
+def run_project_assessment_route(
+    project_id: str,
+    payload: Optional[AssessmentRunRequest] = Body(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Executes a comprehensive diligence assessment run across analytical engines.
+    Isolates engine failures, extracts structured findings, and records execution audit trail.
+    """
+    from app.assessment.orchestrator import AssessmentOrchestrator, get_assessment_details
+    selected_engines = payload.selected_engines if payload else None
+    trigger_type = payload.trigger_type if payload and payload.trigger_type else "MANUAL"
+    config = payload.config if payload else None
+    try:
+        assessment = AssessmentOrchestrator.execute_assessment(
+            db=db,
+            project_identifier=project_id,
+            selected_engines=selected_engines,
+            trigger_type=trigger_type,
+            config=config
+        )
+        return get_assessment_details(db, assessment.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/projects/{project_id}/assessments")
+def list_project_assessments_route(project_id: str, db: Session = Depends(get_db)):
+    """Lists historical assessment execution runs for a project."""
+    from app.assessment.orchestrator import list_project_assessments
+    return list_project_assessments(db, project_id)
+
+
+@router.get("/assessments/{assessment_id}")
+def get_assessment_details_route(assessment_id: str, db: Session = Depends(get_db)):
+    """Retrieves full details for a specific assessment run, including engine executions and findings."""
+    from app.assessment.orchestrator import get_assessment_details
+    details = get_assessment_details(db, assessment_id)
+    if not details:
+        raise HTTPException(status_code=404, detail=f"Assessment '{assessment_id}' not found.")
+    return details
+
+
+@router.get("/projects/{project_id}/findings")
+def list_project_findings_route(
+    project_id: str,
+    severity: Optional[str] = Query(None),
+    engine_key: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Lists findings across assessments for a project with optional severity and engine filters."""
+    from app.assessment.orchestrator import list_project_findings
+    return list_project_findings(db, project_id, severity=severity, engine_key=engine_key)
+
+
+@router.post("/projects/{project_id}/reports")
+def generate_project_report_route(
+    project_id: str,
+    assessment_id: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """Generates and persists an immutable due diligence report snapshot with deliverables."""
+    from app.reporting.service import generate_project_report
+    try:
+        return generate_project_report(db, project_id, assessment_id=assessment_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/assessments/{assessment_id}/report")
+def generate_assessment_report_route(assessment_id: str, db: Session = Depends(get_db)):
+    """Generates a persisted diligence report snapshot linked directly to a completed assessment."""
+    from app.reporting.service import generate_project_report
+    from app.db.models import Assessment
+    ass = db.query(Assessment).filter(Assessment.id == assessment_id).first()
+    if not ass:
+        raise HTTPException(status_code=404, detail=f"Assessment '{assessment_id}' not found.")
+    try:
+        return generate_project_report(db, ass.project_id, assessment_id=assessment_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/projects/{project_id}/reports")
+def list_project_reports_route(project_id: str, db: Session = Depends(get_db)):
+    """Lists all historical report snapshots for a project."""
+    from app.reporting.service import list_project_reports
+    return list_project_reports(db, project_id)
+
+
+@router.get("/reports/{report_id}/download")
+def download_report_artifact_route(
+    report_id: str,
+    format: str = Query("pdf", pattern="^(pdf|json|bundle|manifest)$"),
+    db: Session = Depends(get_db)
+):
+    """Downloads or exports report deliverables (pdf, json, bundle, manifest)."""
+    from app.reporting.service import get_report_download_artifact
+    try:
+        artifact = get_report_download_artifact(db, report_id, format=format)
+        if artifact["type"] == "file":
+            return FileResponse(
+                artifact["path"],
+                media_type=artifact["media_type"],
+                filename=artifact["filename"]
+            )
+        elif artifact["type"] == "json":
+            return JSONResponse(
+                content=artifact["data"],
+                headers={"Content-Disposition": f'attachment; filename="{artifact["filename"]}"'}
+            )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 

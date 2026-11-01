@@ -140,6 +140,7 @@ function updateSidebarProjectContext(companyId, companyName) {
   // Update dynamic hrefs
   const base = `/app/projects/${companyId}`;
   document.getElementById("nav-proj-overview").href = base;
+  if (document.getElementById("nav-proj-findings")) document.getElementById("nav-proj-findings").href = `${base}/findings`;
   document.getElementById("nav-proj-claims").href = `${base}/claims`;
   document.getElementById("nav-proj-autonomy").href = `${base}/autonomy`;
   document.getElementById("nav-proj-economics").href = `${base}/economics`;
@@ -249,6 +250,11 @@ async function handleRoute(path) {
         highlightSidebar("project-overview");
         updateBreadcrumbs([{ label: "Projects", url: "/app/projects" }, { label: compName, url: baseProjUrl }, { label: "Overview" }]);
         renderProjectOverviewView(container, compId);
+        break;
+      case "findings":
+        highlightSidebar("findings");
+        updateBreadcrumbs([{ label: "Projects", url: "/app/projects" }, { label: compName, url: baseProjUrl }, { label: "Findings & Risk Register" }]);
+        renderFindingsRegisterView(container, compId);
         break;
       case "claims":
         highlightSidebar("claims");
@@ -768,6 +774,38 @@ function renderProjectOverviewView(container, compId) {
   }
 
   const p = currentPackageData;
+  setTimeout(() => {
+    const runBtn = document.getElementById("btn-run-assessment-overview");
+    if (runBtn) {
+      runBtn.addEventListener("click", async () => {
+        runBtn.disabled = true;
+        runBtn.innerText = "Executing Engines...";
+        showToast("Running full assessment across all 10 analytical engines...", "info");
+        try {
+          const res = await fetch(`/api/v1/projects/${compId}/assessments`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ trigger_type: "MANUAL" })
+          });
+          if (res.ok) {
+            const data = await res.json();
+            showToast(`Assessment Complete! Status: ${data.status} (${(data.findings || []).length} findings, verdict: ${data.summary_verdict})`, "success");
+            currentPackageData = null;
+            await loadDiligencePackage(compId);
+            renderProjectOverviewView(container, compId);
+          } else {
+            const err = await res.json();
+            throw new Error(err.detail || "Assessment failed");
+          }
+        } catch (e) {
+          showToast("Assessment Error: " + e.message, "danger");
+        } finally {
+          runBtn.disabled = false;
+          runBtn.innerText = "▶ Run Diligence Assessment";
+        }
+      });
+    }
+  }, 50);
   const comp = p.company || {};
   const intv = p.interventions || {};
   const econ = p.economics || {};
@@ -784,9 +822,12 @@ function renderProjectOverviewView(container, compId) {
         </div>
         <p style="margin: 0; color: var(--text-secondary);">Observation Window: ${p.observation_window || "Last 30 Days"} | Rate Card: ${p.report_metadata?.pricing_version || "v2026_09"}</p>
       </div>
-      <div style="display: flex; gap: var(--space-3);">
-        <a href="/app/projects/${compId}/claims" class="btn btn-secondary btn-sm">Inspect Claims Matrix →</a>
-        <a href="/app/projects/${compId}/reports" class="btn btn-primary btn-sm">📄 Deal Memo & Downloads</a>
+      <div style="display: flex; gap: var(--space-2); align-items: center;">
+        <button class="btn btn-primary btn-sm" id="btn-run-assessment-overview">
+          <span>▶</span> Run Diligence Assessment
+        </button>
+        <a href="/app/projects/${compId}/findings" class="btn btn-secondary btn-sm">🚩 Findings Register</a>
+        <a href="/app/projects/${compId}/reports" class="btn btn-secondary btn-sm">📄 Downloads & Memo</a>
       </div>
     </div>
 
@@ -811,6 +852,21 @@ function renderProjectOverviewView(container, compId) {
         <div class="kpi-label">Diligence Risk Score</div>
         <div class="kpi-value" style="color: ${memo.diligence_risk_score > 50 ? 'var(--color-danger)' : 'var(--color-success)'};">${memo.diligence_risk_score ?? "--"} / 100</div>
         <div class="kpi-sub">${memo.risk_classification || "MODERATE"} RISK (${memo.deal_verdict || "CONDITIONAL"})</div>
+      </div>
+    </div>
+
+    <!-- Health & Diligence Status Strip -->
+    <div class="panel-card" style="margin-bottom: var(--space-6); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4);">
+      <div>
+        <div style="display: flex; align-items: center; gap: var(--space-2); margin-bottom: 2px;">
+          <h4 style="margin: 0;">Automated Diligence Engine Status</h4>
+          <span class="badge badge-success">Orchestrator Ready</span>
+        </div>
+        <p style="margin: 0; font-size: 0.8rem; color: var(--text-secondary);">10 analytical engines ready to verify pitch deck claims against execution traces.</p>
+      </div>
+      <div style="display: flex; gap: var(--space-2);">
+        <a href="/app/projects/${compId}/evidence" class="btn btn-outline btn-sm">Ingest Traces</a>
+        <a href="/app/projects/${compId}/findings" class="btn btn-secondary btn-sm">View Risk Register</a>
       </div>
     </div>
 
@@ -1602,9 +1658,171 @@ function renderComparisonView(container, compId) {
 }
 
 // ==============================================================================
+// VIEW CONTROLLER 14.5: FINDINGS & RISK REGISTER (/app/projects/{id}/findings)
+// ==============================================================================
+async function renderFindingsRegisterView(container, compId) {
+  let activeSeverity = "ALL";
+  let activeEngine = "ALL";
+
+  container.innerHTML = `
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--space-6); flex-wrap: wrap; gap: var(--space-4);">
+      <div>
+        <h1 style="font-size: 1.75rem; margin-bottom: var(--space-1);">Diligence Findings & Risk Register</h1>
+        <p style="margin: 0; color: var(--text-secondary);">Synthesized architectural risks, verification discrepancies, single points of failure, and security blast radiuses.</p>
+      </div>
+      <div style="display: flex; gap: var(--space-2);">
+        <button class="btn btn-primary btn-sm" id="btn-findings-run-assessment">
+          <span>▶</span> Run Fresh Assessment
+        </button>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="panel-card" style="margin-bottom: var(--space-6); padding: var(--space-4);">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-4);">
+        <div style="display: flex; gap: var(--space-2); align-items: center;" id="findings-severity-filters">
+          <span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 4px;">Severity:</span>
+          <button class="btn btn-sm btn-primary filter-sev" data-sev="ALL">All</button>
+          <button class="btn btn-sm btn-secondary filter-sev" data-sev="CRITICAL">Critical</button>
+          <button class="btn btn-sm btn-secondary filter-sev" data-sev="HIGH">High</button>
+          <button class="btn btn-sm btn-secondary filter-sev" data-sev="MEDIUM">Medium</button>
+          <button class="btn btn-sm btn-secondary filter-sev" data-sev="LOW">Low</button>
+        </div>
+        <div style="display: flex; gap: var(--space-2); align-items: center;">
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Engine:</span>
+          <select id="findings-engine-filter" class="form-control" style="width: 180px; font-size: 0.8rem; padding: 4px 8px;">
+            <option value="ALL">All Engines</option>
+            <option value="autonomy">Autonomy & HIR</option>
+            <option value="economics">Unit Economics</option>
+            <option value="evaluation">Evaluation Overhead</option>
+            <option value="dependencies">Dependencies & SPOF</option>
+            <option value="cascades">Failure Cascades</option>
+            <option value="tool_risk">Tool Security</option>
+            <option value="defensibility">Defensibility</option>
+            <option value="memo">Investment Committee</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Findings Cards Container -->
+    <div id="findings-cards-container">
+      <div style="text-align: center; padding: 40px; color: var(--text-muted);">Loading findings register...</div>
+    </div>
+  `;
+
+  async function loadFindings() {
+    const cardsContainer = document.getElementById("findings-cards-container");
+    if (!cardsContainer) return;
+
+    try {
+      let url = `/api/v1/projects/${compId}/findings?`;
+      if (activeSeverity !== "ALL") url += `severity=${activeSeverity}&`;
+      if (activeEngine !== "ALL") url += `engine_key=${activeEngine}&`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to load findings");
+      const findings = await res.json();
+
+      if (!findings || findings.length === 0) {
+        cardsContainer.innerHTML = `
+          <div class="panel-card" style="text-align: center; padding: 60px;">
+            <div style="font-size: 2.25rem; margin-bottom: var(--space-2);">🛡️</div>
+            <h3 style="margin-bottom: var(--space-2);">No Findings Matching Filter</h3>
+            <p style="color: var(--text-secondary); max-width: 480px; margin: 0 auto var(--space-4);">No active risks or anomalies logged matching the selected filter criteria. Run an assessment to execute analytical engines across all traces.</p>
+            <button class="btn btn-primary btn-sm" id="btn-findings-empty-run">▶ Run Diligence Assessment</button>
+          </div>
+        `;
+        const emptyRun = document.getElementById("btn-findings-empty-run");
+        if (emptyRun) emptyRun.addEventListener("click", triggerAssessment);
+        return;
+      }
+
+      cardsContainer.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: var(--space-4);">
+          ${findings.map(f => {
+            let badgeClass = "badge-info";
+            if (f.severity === "CRITICAL") badgeClass = "badge-danger";
+            else if (f.severity === "HIGH") badgeClass = "badge-warning";
+            else if (f.severity === "MEDIUM") badgeClass = "badge-info";
+
+            return `
+              <div class="card" style="border-left: 4px solid var(--color-${f.severity === 'CRITICAL' ? 'danger' : f.severity === 'HIGH' ? 'warning' : 'primary'});">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-2); flex-wrap: wrap; gap: var(--space-2);">
+                  <div style="display: flex; align-items: center; gap: var(--space-2);">
+                    <span class="badge ${badgeClass}">${f.severity}</span>
+                    <span class="badge badge-secondary font-mono" style="font-size: 0.725rem;">${f.engine_key}</span>
+                    <h3 style="margin: 0; font-size: 1.05rem;">${f.title}</h3>
+                  </div>
+                  <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">${f.created_at ? new Date(f.created_at).toLocaleDateString() : ""}</span>
+                </div>
+                <p style="margin-bottom: var(--space-3); color: var(--text-primary); font-size: 0.875rem; line-height: 1.5;">${f.description}</p>
+                ${f.recommendation ? `
+                  <div style="padding: var(--space-3); background: var(--bg-surface-2); border-radius: var(--radius-sm); font-size: 0.8rem; color: var(--text-secondary); border: 1px solid var(--border-default);">
+                    <strong style="color: var(--text-primary);">Remediation Recommendation:</strong> ${f.recommendation}
+                  </div>
+                ` : ""}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } catch (err) {
+      cardsContainer.innerHTML = `<div class="panel-card" style="color: var(--color-danger); text-align: center; padding: 40px;">Failed to load findings: ${err.message}</div>`;
+    }
+  }
+
+  async function triggerAssessment() {
+    showToast("Executing diligence assessment across all 10 analytical engines...", "info");
+    try {
+      const res = await fetch(`/api/v1/projects/${compId}/assessments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ trigger_type: "MANUAL" })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(`Assessment Complete! Status: ${data.status} (${(data.findings || []).length} findings, verdict: ${data.summary_verdict})`, "success");
+        await loadFindings();
+      } else {
+        throw new Error("Assessment failed");
+      }
+    } catch (err) {
+      showToast("Error: " + err.message, "danger");
+    }
+  }
+
+  const runBtn = document.getElementById("btn-findings-run-assessment");
+  if (runBtn) runBtn.addEventListener("click", triggerAssessment);
+
+  document.querySelectorAll(".filter-sev").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".filter-sev").forEach(b => {
+        b.classList.remove("btn-primary");
+        b.classList.add("btn-secondary");
+      });
+      btn.classList.remove("btn-secondary");
+      btn.classList.add("btn-primary");
+      activeSeverity = btn.getAttribute("data-sev");
+      loadFindings();
+    });
+  });
+
+  const engineSelect = document.getElementById("findings-engine-filter");
+  if (engineSelect) {
+    engineSelect.addEventListener("change", (e) => {
+      activeEngine = e.target.value;
+      loadFindings();
+    });
+  }
+
+  await loadFindings();
+}
+
+// ==============================================================================
 // VIEW CONTROLLER 15: DEAL MEMO & REPORTS (/app/projects/{id}/reports)
 // ==============================================================================
-function renderReportsView(container, compId) {
+async function renderReportsView(container, compId) {
   const p = currentPackageData || {};
   const memo = p.memo || {};
   const pkgFiles = p.package_files || {};
@@ -1612,12 +1830,13 @@ function renderReportsView(container, compId) {
   container.innerHTML = `
     <div style="margin-bottom: var(--space-6); display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: var(--space-4);">
       <div>
-        <h1 style="font-size: 1.75rem; margin-bottom: var(--space-1);">Investment Committee Memo & Audit Packages</h1>
+        <h1 style="font-size: 1.75rem; margin-bottom: var(--space-1);">Investment Committee Memo & Deliverables</h1>
         <p style="margin: 0; color: var(--text-secondary);">Executive diligence recommendation, red flag taxonomy, and verifiable bundle exports.</p>
       </div>
       <div style="display: flex; gap: var(--space-2);">
-        <a href="/api/v1/companies/${compId}/pdf" target="_blank" class="btn btn-primary btn-sm">📄 Download PDF Report</a>
-        <a href="/api/v1/companies/${compId}/package" target="_blank" class="btn btn-secondary btn-sm">📦 JSON Package</a>
+        <button class="btn btn-primary btn-sm" id="btn-generate-report-snapshot">
+          <span>📄</span> Generate New Report Snapshot
+        </button>
       </div>
     </div>
 
@@ -1630,7 +1849,7 @@ function renderReportsView(container, compId) {
       <p style="margin-bottom: var(--space-3); color: var(--text-primary); font-size: 0.95rem;">${memo.executive_verdict_summary || "Automated evaluation completed with findings."}</p>
     </div>
 
-    <!-- Red / Yellow / Green Flags -->
+    <!-- Red / Yellow Flags -->
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-6); margin-bottom: var(--space-8);">
       <div class="panel-card">
         <h4 style="color: var(--color-danger); margin-bottom: var(--space-3);">Critical Red Flags (${(memo.red_flags || []).length})</h4>
@@ -1659,7 +1878,86 @@ function renderReportsView(container, compId) {
         </div>
       </div>
     </div>
+
+    <!-- Persisted Deliverables History Table -->
+    <div class="panel-card">
+      <h3 style="margin-bottom: var(--space-3);">Persisted Diligence Deliverables & Snapshots</h3>
+      <div class="table-container">
+        <table class="data-table" id="table-reports-history">
+          <thead>
+            <tr>
+              <th>Deliverable Title</th>
+              <th>Verdict</th>
+              <th>Risk Score</th>
+              <th>Generated At</th>
+              <th style="text-align: right;">Download Formats</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-reports-history">
+            <tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);">Loading report history...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   `;
+
+  async function loadReportsHistory() {
+    const tbody = document.getElementById("tbody-reports-history");
+    if (!tbody) return;
+
+    try {
+      const res = await fetch(`/api/v1/projects/${compId}/reports`);
+      if (!res.ok) throw new Error("Failed to load reports");
+      const reports = await res.json();
+
+      if (!reports || reports.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px; color: var(--text-muted);">No reports compiled yet. Click "Generate New Report Snapshot" above.</td></tr>';
+      } else {
+        tbody.innerHTML = reports.map(r => `
+          <tr>
+            <td><strong>${r.title || "Technical Diligence Report"}</strong></td>
+            <td><span class="badge ${r.deal_verdict === 'BUY' ? 'badge-success' : 'badge-warning'}">${r.deal_verdict || "CONDITIONAL"}</span></td>
+            <td class="font-mono">${r.risk_score != null ? r.risk_score + " / 100" : "--"}</td>
+            <td style="font-size: 0.8rem; color: var(--text-secondary);">${r.created_at ? new Date(r.created_at).toLocaleString() : "--"}</td>
+            <td style="text-align: right; white-space: nowrap;">
+              <a href="${r.pdf_download_url}" target="_blank" class="btn btn-outline btn-sm" style="margin-left: 4px;">PDF</a>
+              <a href="${r.json_download_url}" target="_blank" class="btn btn-outline btn-sm" style="margin-left: 4px;">JSON</a>
+              <a href="${r.bundle_download_url}" target="_blank" class="btn btn-primary btn-sm" style="margin-left: 4px;">ZIP Bundle</a>
+              <a href="${r.manifest_download_url}" target="_blank" class="btn btn-outline btn-sm" style="margin-left: 4px;">Manifest</a>
+            </td>
+          </tr>
+        `).join('');
+      }
+    } catch (err) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--color-danger); padding: 20px;">Error loading reports: ${err.message}</td></tr>`;
+    }
+  }
+
+  const genBtn = document.getElementById("btn-generate-report-snapshot");
+  if (genBtn) {
+    genBtn.addEventListener("click", async () => {
+      genBtn.disabled = true;
+      genBtn.innerText = "Compiling Deliverables...";
+      showToast("Compiling board-ready PDF, CycloneDX AIBOM, and verifiable signed bundle...", "info");
+      try {
+        const res = await fetch(`/api/v1/projects/${compId}/reports`, { method: "POST" });
+        if (res.ok) {
+          const rep = await res.json();
+          showToast(`Report compiled successfully! ID: ${rep.report_id.substring(0, 8)}...`, "success");
+          await loadReportsHistory();
+        } else {
+          throw new Error("Compilation failed");
+        }
+      } catch (err) {
+        showToast("Error generating report: " + err.message, "danger");
+      } finally {
+        genBtn.disabled = false;
+        genBtn.innerText = "📄 Generate New Report Snapshot";
+      }
+    });
+  }
+
+  await loadReportsHistory();
 }
 
 // ==============================================================================

@@ -8,13 +8,13 @@ let currentMetricsData = null;
 let currentMatrixData = null;
 
 // Initialize on DOM Ready
-document.addEventListener("DOMContentLoaded", async () => {
+document.addEventListener("DOMContentLoaded", () => {
   setupSidebarToggle();
   setupGlobalLinkInterceptor();
   setupUploadModal();
-  await loadCompaniesList();
+  loadCompaniesList(); // Non-blocking background fetch
   
-  // Route current path
+  // Route current path immediately
   handleRoute(window.location.pathname);
 
   // Listen to browser Back/Forward
@@ -105,7 +105,12 @@ function updateTargetSwitcher() {
     const opt = document.createElement("option");
     opt.value = c.id;
     opt.innerText = `${c.name} (${c.trace_count} traces)`;
-    if (c.id === currentCompanyId) opt.selected = true;
+    if (
+      c.id === currentCompanyId ||
+      (currentPackageData && (currentPackageData.company?.id === c.id || (currentPackageData.project_id === currentCompanyId && currentPackageData.company?.id === c.id)))
+    ) {
+      opt.selected = true;
+    }
     select.appendChild(opt);
   });
 
@@ -322,13 +327,19 @@ async function handleRoute(path) {
 }
 
 async function ensureProjectLoaded(compId) {
-  if (currentPackageData && currentPackageData.company?.id === compId) {
+  if (
+    currentPackageData &&
+    (currentPackageData.company?.id === compId ||
+     currentPackageData.project_id === compId ||
+     currentPackageData._loaded_id === compId)
+  ) {
     return;
   }
   try {
     const res = await fetch(`/api/v1/companies/${compId}/package`);
     if (res.ok) {
       currentPackageData = await res.json();
+      currentPackageData._loaded_id = compId;
     } else {
       currentPackageData = null;
     }
@@ -480,13 +491,27 @@ async function renderProjectsCatalogView(container) {
 
   let projects = [];
   try {
-    const res = await fetch("/api/v1/projects");
+    const res = await fetch("/api/v1/projects?status=ALL");
     if (res.ok) {
       projects = await res.json();
+    } else {
+      throw new Error(`Server returned HTTP ${res.status}`);
     }
   } catch (err) {
     console.error("Failed to load projects:", err);
+    container.innerHTML = `
+      <div class="panel-card" style="text-align: center; padding: 40px;">
+        <h3 style="color: var(--color-danger); margin-bottom: var(--space-2);">Error Loading Projects</h3>
+        <p style="color: var(--text-secondary); margin-bottom: var(--space-4);">${err.message}</p>
+        <button class="btn btn-primary" onclick="handleRoute('/app/projects')">Retry</button>
+      </div>
+    `;
+    return;
   }
+
+  const activeCount = projects.filter(p => p.status === 'ACTIVE').length;
+  const archivedCount = projects.filter(p => p.status === 'ARCHIVED').length;
+  const totalCount = projects.length;
 
   container.innerHTML = `
     <div style="margin-bottom: var(--space-6); display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: var(--space-4);">
@@ -501,9 +526,9 @@ async function renderProjectsCatalogView(container) {
       <div style="display: flex; justify-content: space-between; align-items: center; gap: var(--space-4); flex-wrap: wrap; margin-bottom: var(--space-4);">
         <input type="text" id="input-catalog-search" class="form-control" placeholder="Search target companies or systems..." style="width: 320px;">
         <div style="display: flex; gap: var(--space-2);" id="catalog-filter-group">
-          <button class="btn btn-sm btn-outline active-filter" data-filter="ACTIVE">Active (${projects.filter(p => p.status === 'ACTIVE').length})</button>
-          <button class="btn btn-sm btn-outline" data-filter="ALL">All (${projects.length})</button>
-          <button class="btn btn-sm btn-outline" data-filter="ARCHIVED">Archived</button>
+          <button class="btn btn-sm btn-outline active-filter" data-filter="ACTIVE">Active (${activeCount})</button>
+          <button class="btn btn-sm btn-outline" data-filter="ALL">All (${totalCount})</button>
+          <button class="btn btn-sm btn-outline" data-filter="ARCHIVED">Archived (${archivedCount})</button>
         </div>
       </div>
 
@@ -523,7 +548,7 @@ async function renderProjectsCatalogView(container) {
           <tbody id="catalog-tbody">
             ${projects.length === 0 ? '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 40px;">No diligence projects found. Click "+ New Evaluation" to begin.</td></tr>' :
               projects.map(p => `
-                <tr data-status="${p.status}">
+                <tr data-status="${p.status}" ${p.status === 'ACTIVE' ? '' : 'style="display: none;"'}>
                   <td>
                     <strong>${p.name}</strong>
                     <div style="font-size: 0.75rem; color: var(--text-muted);">${p.target_name || ''}</div>
@@ -551,10 +576,15 @@ async function renderProjectsCatalogView(container) {
   if (searchInput) {
     searchInput.addEventListener("input", (e) => {
       const q = e.target.value.toLowerCase();
+      const activeFilterBtn = container.querySelector("#catalog-filter-group button.active-filter");
+      const currentFilter = activeFilterBtn ? activeFilterBtn.getAttribute("data-filter") : "ALL";
       const rows = container.querySelectorAll("#catalog-tbody tr");
       rows.forEach(r => {
         const text = r.innerText.toLowerCase();
-        r.style.display = text.includes(q) ? "" : "none";
+        const st = r.getAttribute("data-status");
+        const matchesFilter = (currentFilter === "ALL" || st === currentFilter);
+        const matchesSearch = text.includes(q);
+        r.style.display = (matchesFilter && matchesSearch) ? "" : "none";
       });
     });
   }
@@ -566,14 +596,13 @@ async function renderProjectsCatalogView(container) {
       filterBtns.forEach(b => b.classList.remove("active-filter"));
       btn.classList.add("active-filter");
       const f = btn.getAttribute("data-filter");
+      const q = searchInput ? searchInput.value.toLowerCase() : "";
       const rows = container.querySelectorAll("#catalog-tbody tr");
       rows.forEach(r => {
         const st = r.getAttribute("data-status");
-        if (f === "ALL" || !f) {
-          r.style.display = "";
-        } else {
-          r.style.display = (st === f) ? "" : "none";
-        }
+        const matchesFilter = (f === "ALL" || !f || st === f);
+        const matchesSearch = !q || r.innerText.toLowerCase().includes(q);
+        r.style.display = (matchesFilter && matchesSearch) ? "" : "none";
       });
     });
   });
@@ -791,7 +820,7 @@ function renderProjectOverviewView(container, compId) {
             const data = await res.json();
             showToast(`Assessment Complete! Status: ${data.status} (${(data.findings || []).length} findings, verdict: ${data.summary_verdict})`, "success");
             currentPackageData = null;
-            await loadDiligencePackage(compId);
+            await ensureProjectLoaded(compId);
             renderProjectOverviewView(container, compId);
           } else {
             const err = await res.json();
@@ -2130,7 +2159,14 @@ function setupUploadModal() {
         return;
       }
 
-      const targetId = currentCompanyId || "default";
+      const targetSelect = document.getElementById("topbar-target-select");
+      const targetId = currentCompanyId || (targetSelect ? targetSelect.value : null) || (companiesList[0]?.id);
+      if (!targetId || targetId === "default") {
+        alert("Please select a target company or create a diligence evaluation first.");
+        submitBtn.disabled = false;
+        submitBtn.innerText = "Submit & Ingest Telemetry";
+        return;
+      }
       const ingestUrl = `/api/v1/projects/${targetId}/ingest`;
 
       submitBtn.innerText = "Ingesting & Verifying...";

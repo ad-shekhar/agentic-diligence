@@ -115,7 +115,10 @@ def list_projects(
 ) -> List[Dict[str, Any]]:
     """
     Lists all accessible projects, ensuring legacy companies are represented.
+    Optimized with batch counts and joined queries to eliminate N+1 database queries.
     """
+    from sqlalchemy import func
+
     # Auto-seed projects for any orphan companies
     orphan_companies = (
         db.query(Company)
@@ -123,15 +126,16 @@ def list_projects(
         .filter(Project.id == None)
         .all()
     )
-    for c in orphan_companies:
-        get_or_create_project_for_company(db, c)
+    if orphan_companies:
+        for c in orphan_companies:
+            get_or_create_project_for_company(db, c)
 
-    query = db.query(Project).join(Company, Project.company_id == Company.id)
+    query = db.query(Project, Company.name.label("comp_name")).join(Company, Project.company_id == Company.id)
 
     if status and status.upper() != "ALL":
         query = query.filter(Project.status == status.upper())
-    else:
-        # Default excludes ARCHIVED unless explicitly requested
+    elif not status:
+        # Default excludes ARCHIVED unless explicitly requested or status=ALL
         query = query.filter(Project.status != "ARCHIVED")
 
     if search:
@@ -144,35 +148,40 @@ def list_projects(
             )
         )
 
-    projects = query.order_by(desc(Project.created_at)).all()
-    results = []
+    projects_with_comp = query.order_by(desc(Project.created_at)).all()
+    if not projects_with_comp:
+        return []
 
-    for p in projects:
-        comp = p.company
-        trace_count = len(comp.traces) if comp and comp.traces else 0
-        latest_assessment = (
-            db.query(Assessment)
-            .filter(Assessment.project_id == p.id)
-            .order_by(desc(Assessment.created_at))
-            .first()
-        )
+    # Batch compute trace counts and assessment counts in 2 single queries
+    trace_counts = dict(db.query(Trace.company_id, func.count(Trace.id)).group_by(Trace.company_id).all())
+    assessment_counts = dict(db.query(Assessment.project_id, func.count(Assessment.id)).group_by(Assessment.project_id).all())
+
+    # Batch load latest assessments
+    latest_assessments = {}
+    for a in db.query(Assessment).order_by(desc(Assessment.created_at)).all():
+        if a.project_id not in latest_assessments:
+            latest_assessments[a.project_id] = a
+
+    results = []
+    for p, comp_name in projects_with_comp:
+        la = latest_assessments.get(p.id)
         results.append({
             "id": p.id,
             "company_id": p.company_id,
             "name": p.name,
-            "target_name": comp.name if comp else p.target_system,
+            "target_name": comp_name or p.target_system,
             "target_system": p.target_system,
             "target_type": p.target_type,
             "framework": p.framework,
             "description": p.description,
             "status": p.status,
-            "trace_count": trace_count,
-            "assessment_count": len(p.assessments),
-            "last_assessment_status": latest_assessment.status if latest_assessment else None,
+            "trace_count": trace_counts.get(p.company_id, 0),
+            "assessment_count": assessment_counts.get(p.id, 0),
+            "last_assessment_status": la.status if la else None,
             "last_assessment_at": (
-                latest_assessment.completed_at.isoformat()
-                if latest_assessment and latest_assessment.completed_at
-                else (latest_assessment.created_at.isoformat() if latest_assessment else None)
+                la.completed_at.isoformat()
+                if la and la.completed_at
+                else (la.created_at.isoformat() if la else None)
             ),
             "created_at": p.created_at.isoformat() if p.created_at else None,
             "updated_at": p.updated_at.isoformat() if p.updated_at else None,

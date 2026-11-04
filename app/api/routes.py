@@ -51,20 +51,32 @@ def run_benchmark_scenario(scenario_name: str = "scenario_a", sample_size: int =
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+def _resolve_company_id(db: Session, identifier: str) -> str:
+    """Resolves a company ID given either a company UUID or a project UUID."""
+    if not identifier:
+        return identifier
+    from app.projects.service import get_project_by_id_or_company
+    proj = get_project_by_id_or_company(db, identifier)
+    return proj.company_id if proj else identifier
+
+
 @router.get("/companies")
 def list_companies(db: Session = Depends(get_db)):
     """Returns list of all target companies / diligence evaluations in the workspace catalog."""
+    from sqlalchemy import func
+    from app.db.models import Trace
+    trace_counts = dict(db.query(Trace.company_id, func.count(Trace.id)).group_by(Trace.company_id).all())
     companies = db.query(Company).order_by(Company.created_at.desc()).all()
     results = []
     for c in companies:
-        trace_count = len(c.traces)
+        cnt = trace_counts.get(c.id, 0)
         results.append({
             "id": c.id,
             "name": c.name,
             "domain": c.domain,
             "created_at": c.created_at.isoformat() if c.created_at else None,
-            "trace_count": trace_count,
-            "status": "COMPLETED" if trace_count > 0 else "READY",
+            "trace_count": cnt,
+            "status": "COMPLETED" if cnt > 0 else "READY",
         })
     return results
 
@@ -378,8 +390,13 @@ def get_diligence_package(company_id: str, db: Session = Depends(get_db)):
 
         report = db.query(Report).filter(Report.company_id == target_comp_id).order_by(Report.created_at.desc()).first()
         if report and report.summary_json:
-            return report.summary_json
-        return build_due_diligence_report(db, target_comp_id)
+            pkg_data = dict(report.summary_json)
+        else:
+            pkg_data = build_due_diligence_report(db, target_comp_id)
+
+        if isinstance(pkg_data, dict):
+            pkg_data["project_id"] = proj.id if proj else None
+        return pkg_data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -391,6 +408,7 @@ def get_cyclonedx_aibom(
 ):
     """Exports CycloneDX 1.6 or 1.5-compatible AIBOM JSON with schema validation status."""
     try:
+        company_id = _resolve_company_id(db, company_id)
         from app.aibom.generator import validate_cyclonedx_schema
         native_bom = generate_native_aibom(db, company_id)
         cdx = export_cyclonedx_aibom(native_bom, spec_version=spec_version)
@@ -418,6 +436,7 @@ def get_cyclonedx_aibom(
 def get_chain_of_custody_manifest(company_id: str, db: Session = Depends(get_db)):
     """Returns the cryptographic chain-of-custody manifest."""
     try:
+        company_id = _resolve_company_id(db, company_id)
         report = db.query(Report).filter(Report.company_id == company_id).order_by(Report.created_at.desc()).first()
         if report and report.summary_json and "audit_manifest" in report.summary_json:
             return report.summary_json["audit_manifest"]
@@ -429,6 +448,7 @@ def get_chain_of_custody_manifest(company_id: str, db: Session = Depends(get_db)
 @router.get("/companies/{company_id}/pdf")
 def get_diligence_pdf(company_id: str, db: Session = Depends(get_db)):
     """Downloads or previews the compiled PDF due diligence report."""
+    company_id = _resolve_company_id(db, company_id)
     report = db.query(Report).filter(Report.company_id == company_id).order_by(Report.created_at.desc()).first()
     if report and report.pdf_path and os.path.exists(str(report.pdf_path)):
         return FileResponse(str(report.pdf_path), media_type="application/pdf", filename=os.path.basename(str(report.pdf_path)))
@@ -516,37 +536,44 @@ def upload_telemetry(payload_wrapper: Dict[str, Any] = Body(...), db: Session = 
 @router.get("/companies/{company_id}/autonomy")
 def get_company_autonomy(company_id: str, db: Session = Depends(get_db)):
     """Returns deterministic Human Intervention Rate and autonomy breakdown."""
+    company_id = _resolve_company_id(db, company_id)
     return analyze_human_intervention(db, company_id)
 
 @router.get("/companies/{company_id}/economics")
 def get_company_economics(company_id: str, db: Session = Depends(get_db)):
     """Returns unit economics, cost per task, and latency percentiles."""
+    company_id = _resolve_company_id(db, company_id)
     return analyze_unit_economics(db, company_id)
 
 @router.get("/companies/{company_id}/dependencies")
 def get_company_dependencies(company_id: str, db: Session = Depends(get_db)):
     """Returns provider concentration and Herfindahl-Hirschman Index (HHI)."""
+    company_id = _resolve_company_id(db, company_id)
     return analyze_provider_dependencies(db, company_id)
 
 @router.get("/companies/{company_id}/cascades")
 def get_company_cascades(company_id: str, db: Session = Depends(get_db)):
     """Returns failure cascade and retry cost amplification metrics."""
+    company_id = _resolve_company_id(db, company_id)
     return analyze_failure_cascades(db, company_id)
 
 @router.get("/companies/{company_id}/aibom")
 def get_company_aibom(company_id: str, db: Session = Depends(get_db)):
     """Returns native AIBOM for a company."""
+    company_id = _resolve_company_id(db, company_id)
     return generate_native_aibom(db, company_id)
 
 @router.get("/companies/{company_id}/tool-risk")
 def get_company_tool_risk(company_id: str, db: Session = Depends(get_db)):
     """Returns tool privilege and sandbox execution risk assessment."""
+    company_id = _resolve_company_id(db, company_id)
     return analyze_tool_execution_risk(db, company_id)
 
 @router.get("/companies/{company_id}/defensibility")
 def get_company_defensibility(company_id: str, db: Session = Depends(get_db)):
     """Returns defensibility score, proprietary scaffolding, and moat analysis."""
     try:
+        company_id = _resolve_company_id(db, company_id)
         return analyze_defensibility_and_moat(db, company_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -562,6 +589,7 @@ def run_company_stress_test(
     provider price shocks, volume scaling, and fully-loaded human labor economics.
     """
     try:
+        company_id = _resolve_company_id(db, company_id)
         vol = float(payload.get("volume_multiplier", 1.0))
         shock = float(payload.get("provider_price_shock_pct", 0.0))
         wage = float(payload.get("human_hourly_wage_usd", 28.0))
@@ -582,6 +610,7 @@ def run_company_stress_test(
 def get_company_memo(company_id: str, db: Session = Depends(get_db)):
     """Returns Investment Committee Executive Diligence Memo, Red Flags, and Deal Verdict."""
     try:
+        company_id = _resolve_company_id(db, company_id)
         return generate_investment_committee_memo(db, company_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -589,6 +618,7 @@ def get_company_memo(company_id: str, db: Session = Depends(get_db)):
 @router.get("/companies/{company_id}/bundle")
 def download_diligence_bundle(company_id: str, db: Session = Depends(get_db)):
     """Downloads the complete cryptographically verifiable .zip diligence bundle."""
+    company_id = _resolve_company_id(db, company_id)
     package = build_due_diligence_report(db, company_id)
     pkg_files = package.get("package_files", {})
     bundle_path = pkg_files.get("diligence_bundle_zip")
@@ -615,13 +645,23 @@ def verify_bundle_endpoint(payload: Dict[str, Any] = Body(...)):
 
 @router.get("/comparison")
 def compare_companies_endpoint(
-    company_a_id: str,
-    company_b_id: str,
+    company_a_id: Optional[str] = Query(None),
+    company_b_id: Optional[str] = Query(None),
+    target_a: Optional[str] = Query(None),
+    target_b: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     """Generates side-by-side comparative technical diligence matrix between two targets."""
     try:
-        return compare_diligence_targets(db, company_a_id, company_b_id)
+        id_a = company_a_id or target_a
+        id_b = company_b_id or target_b
+        if not id_a or not id_b:
+            raise HTTPException(status_code=400, detail="Both targets are required for comparison (e.g. target_a and target_b or company_a_id and company_b_id).")
+        resolved_a = _resolve_company_id(db, id_a)
+        resolved_b = _resolve_company_id(db, id_b)
+        return compare_diligence_targets(db, resolved_a, resolved_b)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -749,6 +789,7 @@ def get_company_metrics(
     from datetime import datetime
 
     try:
+        company_id = _resolve_company_id(db, company_id)
         traces = db.query(Trace).filter(Trace.company_id == company_id).all()
         if not traces:
             raise HTTPException(status_code=404, detail=f"No traces found for company {company_id}")
@@ -816,6 +857,7 @@ def get_company_claim_matrix(company_id: str, db: Session = Depends(get_db)):
     """
     try:
         from app.reporting.service import assemble_canonical_diligence_report_package
+        company_id = _resolve_company_id(db, company_id)
         company = db.query(Company).filter(Company.id == company_id).first()
         if not company:
             raise HTTPException(status_code=404, detail=f"Company {company_id} not found")
@@ -839,6 +881,7 @@ def get_company_diligence_report(
     """
     try:
         from app.reporting.service import assemble_canonical_diligence_report_package
+        company_id = _resolve_company_id(db, company_id)
         company = db.query(Company).filter(Company.id == company_id).first()
         if not company:
             raise HTTPException(status_code=404, detail=f"Company {company_id} not found")
@@ -862,6 +905,7 @@ def create_company_bundle(
     Compiles an evidence bundle and cryptographic manifest on disk.
     """
     try:
+        company_id = _resolve_company_id(db, company_id)
         from app.reporting.service import compile_diligence_bundle_on_disk
         company = db.query(Company).filter(Company.id == company_id).first()
         if not company:
